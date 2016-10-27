@@ -41,21 +41,7 @@ public class ArmyManager{
 		this.self = self;
 		this.game = game;
 		
-		int x = 0, y = 0; 
-		Position searchPos = new Position(x, y);
-	
-		while(searchPos.isValid())
-		{
-			while(searchPos.isValid())
-			{
-					allPositions.add(searchPos);
-				x += 32;
-				searchPos = new Position(x, y);
-			}
-			x = 0; 
-			y += 32; 
-			searchPos = new Position(x, y);
-		}
+		
 	}
 
 	/**

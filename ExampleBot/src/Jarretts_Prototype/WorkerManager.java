@@ -96,7 +96,7 @@ public class WorkerManager{
 			larvae.remove(u);
 		}
 		
-		System.out.println("There are "+larvae.size()+" larva in the list");
+		//System.out.println("There are "+larvae.size()+" larva in the list");
 	}
 
 	/**
@@ -110,15 +110,15 @@ public class WorkerManager{
 		Unit availableWorker = null;
 		for(Unit worker : workerList)
 		{			
-			//make sure no drones are going to morph at the same time
-			if(worker.getOrder().equals(Order.ZergBuildingMorph))
-			{
-				return null;
-			}		
+//			//make sure no drones are going to morph at the same time
+//			if(worker.getOrder().equals(Order.ZergBuildingMorph))
+//			{
+//				return null;
+//			}		
 			
 			//find a free worker
 			if(!worker.isMorphing() && worker.isInterruptible() 
-					&& worker.isCompleted())
+					&& worker.isCompleted() && !worker.isCarryingMinerals())
 			{
 				availableWorker = worker;
 			}

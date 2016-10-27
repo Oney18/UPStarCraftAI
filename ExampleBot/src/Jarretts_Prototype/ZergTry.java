@@ -6,6 +6,7 @@ import java.util.HashSet;
 import bwapi.*;
 import bwta.BWTA;
 import bwta.BaseLocation;
+import bwta.Chokepoint;
 
 public class ZergTry extends DefaultBWListener {
 
@@ -19,8 +20,22 @@ public class ZergTry extends DefaultBWListener {
 	private MilitaryManager militaryManager;
 
 	private boolean isScouting = false;
+	
+	private boolean buildingPool = false;
+	
+	private boolean gasMorphing = false;
+	private boolean cheesed = false;
+	private Unit gasMorpher = null;
+	
+	private boolean initDrone = false;
+	private boolean doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
+	
+	private int elapsedTime = 0;
 
+	
 	private HashSet<Position> enemyBuildingLocation;
+	private HashSet<Position> enemyUnitLocation;
+	private HashSet<Position> enemyPeonLocation;
 
 	public void run() {
 		mirror.getModule().setEventListener(this);
@@ -31,35 +46,36 @@ public class ZergTry extends DefaultBWListener {
 	public void onUnitCreate(Unit unit) {
 
 		if (unit.getType().isWorker()) {
-			if (militaryManager.hasScout()) {
-				productionManager.addUnit(unit);
-			} else {
-				militaryManager.addUnit(unit);
-			}
-		} else if (unit.getType() == UnitType.Zerg_Larva) {
-			System.out.println("Larva set off onCreate");
 			productionManager.addUnit(unit);
+			
+		} else if (unit.getType() == UnitType.Zerg_Larva) {
+			productionManager.addUnit(unit);
+			
 		} else if (!unit.getType().isNeutral()) {
 			// Military Unit
 			militaryManager.addUnit(unit);
-		}
-
+		} else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
+			buildingPool = false;
+		
 	}
 	
 	@Override
 	public void onUnitMorph(Unit unit){
-		if (unit.getType().isWorker()) {
-			if (militaryManager.hasScout()) {
-				productionManager.addUnit(unit);
-			} else {
-				militaryManager.addUnit(unit);
-			}
+		if(unit.getType() == UnitType.Zerg_Extractor){
+			
+		}
+		else if (unit.getType().isWorker()) {
+			productionManager.addUnit(unit);
+			
 		} else if (unit.getType() == UnitType.Zerg_Larva) {
 			productionManager.addUnit(unit);
+			
 		} else if (!unit.getType().isNeutral()) {
 			// Military Unit
 			militaryManager.addUnit(unit);
 		}
+		
+		System.out.println("This unit proc'd onUnitMorph: " + unit.getType());
 	}
 
 	@Override
@@ -84,22 +100,43 @@ public class ZergTry extends DefaultBWListener {
 			e.printStackTrace();
 		}
 		enemyBuildingLocation = new HashSet<Position>();
-
+		enemyUnitLocation = new HashSet<Position>();
+		enemyPeonLocation = new HashSet<Position>();
+		
+		for(Unit u : self.getUnits())
+		{
+			if(u.getType() == UnitType.Zerg_Overlord)
+				militaryManager.addUnit(u);
+			
+			else if(u.getType() == UnitType.Zerg_Drone
+					|| u.getType() == UnitType.Zerg_Larva)
+			{
+				productionManager.addUnit(u);
+			}
+		}
+		
 	}
 
 	@Override
 	public void onFrame() {
-		// update game information
-		updateEnemyBuildingLocations();
+		try{
+			// update game information
+			updateEnemyLocations();
 
-		// give orders to lower tier classes
-		doStuff();
+			// give orders to lower tier classes
+			doStuff();
 
-		// update lower tier classes with new information from game
-		productionManager.update();
-		militaryManager.update();
+			// update lower tier classes with new information from game
+			productionManager.update();
+			militaryManager.update();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
 	}
 
+	
+	
 	public void doStuff() {
 		// TODO put the meat of logic in here
 		int armyCount = militaryManager.getArmyCount();
@@ -108,37 +145,42 @@ public class ZergTry extends DefaultBWListener {
 
 		// grab our resources
 		int minerals = self.minerals();
-		int gas = self.gas();
 
-		// If we are almost supply capped morph an overlord
-		if (self.supplyTotal() - self.supplyUsed() <= 3 && self.incompleteUnitCount(UnitType.Zerg_Overlord) < 1
-				&& minerals >= 100) {
-			productionGoal.add(UnitType.Zerg_Overlord);
-			minerals -= 100;
-		}
-
-		// build a spawning pool
-		if (self.allUnitCount(UnitType.Zerg_Spawning_Pool) < 1 && minerals >= 200
-				&& self.incompleteUnitCount(UnitType.Zerg_Spawning_Pool) < 1) {
-			productionGoal.add(UnitType.Zerg_Spawning_Pool);
-			minerals -= 200;
-		}
-
-		// build a hatchery if possible
-		if (self.allUnitCount(UnitType.Zerg_Hatchery) < 3 && minerals >= 300
-				&& self.incompleteUnitCount(UnitType.Zerg_Hatchery) < 1) {
-			productionGoal.add(UnitType.Zerg_Hatchery);
-			minerals -= 300;
-		}
-
-		// build drones if less than 5
-		if (self.allUnitCount(UnitType.Zerg_Drone) < 5 && minerals >= 50) {
+		//starting condition, build a drone
+		if(!initDrone && doInitDrone)
+		{
 			productionGoal.add(UnitType.Zerg_Drone);
 			minerals -= 50;
+			initDrone = true;
+		}
+		
+		// build a spawning pool
+		if (self.allUnitCount(UnitType.Zerg_Spawning_Pool) < 1 && minerals >= 200
+				&& !buildingPool) {
+			productionGoal.add(UnitType.Zerg_Spawning_Pool);
+			minerals -= 200;
+			buildingPool = true;
 		}
 
+
+		//System.out.println("supply total - supply used = " + (self.supplyTotal() - self.supplyUsed()));
+		if(self.supplyTotal() - self.supplyUsed() == 0 && gasMorpher == null
+				&& minerals >= 50){
+			System.out.println("It added the extractor!");
+			productionGoal.add(UnitType.Zerg_Extractor);
+			minerals -= 50;
+		}
+		
+		
+		if(self.supplyTotal() - self.supplyUsed() == 0
+				&& !cheesed && gasMorpher != null){
+			System.out.println("it tries to cancel!");
+			gasMorpher.cancelMorph();
+			cheesed = true;
+		}
+		
+		while(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0 && minerals >= 50){
 		// build zerglings if possible
-		if (self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0 && minerals >= 50) {
 			productionGoal.add(UnitType.Zerg_Zergling);
 			minerals -= 50;
 		}
@@ -149,9 +191,28 @@ public class ZergTry extends DefaultBWListener {
 		// attack the unit
 		if (armyCount >= 6) {
 			// pick a building to attack and order an attack
-			for (Position pos : enemyBuildingLocation) {
-				militaryManager.command(Command.Attack, 1.0, pos);
-				break;
+			if(!enemyUnitLocation.isEmpty())
+			{
+				for (Position pos : enemyUnitLocation) {
+					militaryManager.command(Command.Attack, 1.0, pos);
+					break;
+				}
+			}
+			else if(!enemyPeonLocation.isEmpty())
+			{
+				
+				for (Position pos : enemyPeonLocation) {
+					militaryManager.command(Command.Attack, 1.0, pos);
+					break;
+				}
+			}
+			
+			else if(!enemyBuildingLocation.isEmpty())
+			{
+				for (Position pos : enemyBuildingLocation) {
+					militaryManager.command(Command.Attack, 1.0, pos);
+					break;
+				}
 			}
 		}
 
@@ -168,111 +229,13 @@ public class ZergTry extends DefaultBWListener {
 
 	}
 
-	public void onFrameOLD() {
-		// game.setTextSize(10);
-		game.drawTextScreen(10, 10, "Playing as " + self.getName() + " - " + self.getRace());
-
-		StringBuilder units = new StringBuilder("My units:\n");
-
-		// if we can't find the enemy continue scouting
-		if (enemyBuildingLocation.isEmpty()) {
-			isScouting = false;
-		}
-
-		// make sure we are scouting
-		if (!isScouting) {
-			militaryManager.command(Command.Scout, 1.0, null);
-			isScouting = true;
-		}
-
-		updateEnemyBuildingLocations();
-		militaryManager.update();
-
-		if (!enemyBuildingLocation.isEmpty() && militaryManager.getArmyCount() > 6) {
-			for (Position pos : enemyBuildingLocation) {
-				militaryManager.command(Command.Attack, 1.0, pos);
-			}
-		}
-
-		// iterate through my units
-		for (Unit myUnit : self.getUnits()) {
-			units.append(myUnit.getType()).append(" ").append(myUnit.getTilePosition()).append("\n");
-
-			// build a spawning pool, make the zerglings!
-			if (myUnit.getType().isWorker() && self.allUnitCount(UnitType.Zerg_Spawning_Pool) < 1
-					&& self.minerals() >= 200 && myUnit.isGatheringMinerals()) {
-				TilePosition buildSpot = getBuildTile(myUnit, UnitType.Zerg_Spawning_Pool, self.getStartLocation());
-
-				if (buildSpot != null) {
-					myUnit.build(UnitType.Zerg_Spawning_Pool, buildSpot);
-					continue;
-				}
-			}
-
-			// build new hatchery
-			// BUSTED BEYOND BELIEF
-			if (myUnit.getType().isWorker() && self.allUnitCount(UnitType.Zerg_Hatchery) < 3 && self.minerals() >= 300
-					&& myUnit.isGatheringMinerals()) {
-
-				TilePosition buildSpot = getBuildTile(myUnit, UnitType.Zerg_Hatchery, self.getStartLocation());
-				System.out.println("YO, WE DEFINITELY LOOKING");
-				if (buildSpot != null) {
-					System.out.println("Found a spot, yay");
-					myUnit.build(UnitType.Zerg_Hatchery, buildSpot);
-					continue;
-				}
-			}
-
-			// if need more supply, build overlord
-			if (myUnit.getType() == UnitType.Zerg_Larva && self.minerals() >= 100
-					&& (self.supplyTotal() - self.supplyUsed()) <= 1) {
-				myUnit.morph(UnitType.Zerg_Overlord);
-			}
-
-			// if there's enough minerals, train a drone, if theres less than 5
-			if (myUnit.getType() == UnitType.Zerg_Larva && self.minerals() >= 50
-					&& (self.supplyTotal() - self.supplyUsed()) > 0 && self.allUnitCount(UnitType.Zerg_Drone) < 6) {
-				myUnit.morph(UnitType.Zerg_Drone);
-			}
-
-			// if there's enough minerals, train a zergling
-			if (myUnit.getType() == UnitType.Zerg_Larva && self.minerals() >= 50
-					&& (self.supplyTotal() - self.supplyUsed()) > 0
-					&& self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0) {
-				myUnit.morph(UnitType.Zerg_Zergling);
-			}
-
-			// if it's a worker and it's idle, send it to the closest mineral
-			// patch
-			if (myUnit.getType().isWorker() && myUnit.isIdle()) {
-				Unit closestMineral = null;
-
-				// find the closest mineral
-				for (Unit neutralUnit : game.neutral().getUnits()) {
-					if (neutralUnit.getType().isMineralField()) {
-						if (closestMineral == null
-								|| myUnit.getDistance(neutralUnit) < myUnit.getDistance(closestMineral)) {
-							closestMineral = neutralUnit;
-						}
-					}
-				}
-
-				// if a mineral patch was found, send the worker to gather it
-				if (closestMineral != null) {
-					myUnit.gather(closestMineral, false);
-				}
-			}
-		}
-
-		// draw my units on screen
-		game.drawTextScreen(10, 25, units.toString());
-	}
+	
 
 	/**
 	 * getBuildTile()
 	 * 
-	 * Horribly innefficient algorithm to find a spot to build something Ripped
-	 * from SSCAIT
+	 * Horribly innefficient algorithm to find a spot to build something '
+	 * Ripped from SSCAIT
 	 * 
 	 * @param builder
 	 *            the drone to morph
@@ -331,7 +294,7 @@ public class ZergTry extends DefaultBWListener {
 		new ZergTry().run();
 	}
 
-	private void updateEnemyBuildingLocations() {
+	private void updateEnemyLocations() {
 		// Add any buildings we see to list.
 		for (Unit u : game.enemy().getUnits()) {
 			// if this unit is a building add it to the hash
@@ -342,13 +305,26 @@ public class ZergTry extends DefaultBWListener {
 					enemyBuildingLocation.add(u.getPosition());
 				}
 			}
+			else if(u.getType().isWorker()){
+				//check the enemies workers
+				if (!enemyPeonLocation.contains(u.getPosition())) {
+					enemyPeonLocation.add(u.getPosition());
+				}
+			}
+			else if(!u.getType().isNeutral()){
+				//check the enemies soldiers
+				if (!enemyUnitLocation.contains(u.getPosition())) {
+					enemyUnitLocation.add(u.getPosition());
+				}
+			}
 		}
 
-		ArrayList<Position> toRemove = new ArrayList<Position>();
+		ArrayList<Position> buildingsToRemove = new ArrayList<Position>();
+		ArrayList<Position> peonsToRemove = new ArrayList<Position>();
+		ArrayList<Position> unitsToRemove = new ArrayList<Position>();
 
 		// loop over the visible enemy units that we remember
-		if (enemyBuildingLocation == null)
-			System.out.println("Uh Oh!");
+
 		for (Position p : enemyBuildingLocation) {
 			TilePosition tileCorrespondingToP = new TilePosition(p.getX() / 32, p.getY() / 32);
 
@@ -366,10 +342,19 @@ public class ZergTry extends DefaultBWListener {
 				}
 
 				if (!buildingStillThere) {
-					toRemove.add(p);
+					buildingsToRemove.add(p);
 					break;// TODO check if this is necessary
 				}
 			}
 		}
+				
+		
+		
+		//remove all the stuff to remove
+		for(Position p : buildingsToRemove)
+		{
+			enemyBuildingLocation.remove(p);
+		}
+		
 	}
 }

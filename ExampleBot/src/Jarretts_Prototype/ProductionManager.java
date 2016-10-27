@@ -32,8 +32,7 @@ public class ProductionManager {
 	
 	private WorkerManager workerManager;
 	
-	private Hashtable<UnitType, UnitType> buildingsForUnits = new Hashtable<UnitType, UnitType>();
-	private List<Unit> damagedBuildings = new ArrayList<Unit>();
+	private Unit gasMorpher = null;
 	
 	/**
 	 * Ctor
@@ -46,8 +45,6 @@ public class ProductionManager {
 	public ProductionManager(Game game, Player self){
 		this.game = game;
 		this.self = self;
-		
-		this.techPaths = new Hashtable<UnitType, ArrayList<UnitType>>();
 		
 		this.workerManager = new WorkerManager(self, game.getNeutralUnits());
 		
@@ -114,12 +111,12 @@ public class ProductionManager {
 		if(buildingType.isBuilding())
 		{
 			Unit builder = workerManager.getWorker();
-			
+			System.out.println("It recognizes the building?");
 			// make sure the builder is not null
 			if(builder != null && game.canMake(buildingType, builder))
 			{
 				if(buildingType == UnitType.Zerg_Extractor){
-				
+					System.out.println("builder is not null, tries to look for geyser");
 					Unit closestGeyser = null;
 					Position startArea = BWTA.getStartLocation(self).getPosition();
 					
@@ -133,7 +130,9 @@ public class ProductionManager {
 							}					
 						}
 					}
+					gasMorpher = builder;
 					builder.build(buildingType, closestGeyser.getTilePosition());
+					System.out.println("Sent the builder?");
 				}
 				//average building, need not geyser
 				else{					
@@ -147,6 +146,15 @@ public class ProductionManager {
 		}
 	}
 	
+	/**
+	 * cancelGas()
+	 * Cancels the extractor morph to create cheese
+	 */
+	public void cancelGas()
+	{
+		if(gasMorpher != null)
+			gasMorpher.cancelMorph();
+	}
 	
 	/**
 	 * update()
@@ -213,13 +221,13 @@ public class ProductionManager {
 			{
 				//is unit, get a larva
 				Unit larva = workerManager.getLarva();
-				System.out.println("Goal is " + goal.toString());
+				//System.out.println("Goal is " + goal.toString());
 				if(larva != null)
 				{
 					//TODO if we create different units, we will need to add logic checking here
 					
 					if(!larva.morph(goal)){
-						System.out.println("The larva tried to morph but BWAPI said no!");
+						//System.out.println("The larva tried to morph but BWAPI said no!");
 					}
 					
 				}
