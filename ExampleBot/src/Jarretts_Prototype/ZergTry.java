@@ -163,21 +163,21 @@ public class ZergTry extends DefaultBWListener {
 		}
 
 
-		//System.out.println("supply total - supply used = " + (self.supplyTotal() - self.supplyUsed()));
-		if(self.supplyTotal() - self.supplyUsed() == 0 && gasMorpher == null
-				&& minerals >= 50){
-			System.out.println("It added the extractor!");
-			productionGoal.add(UnitType.Zerg_Extractor);
-			minerals -= 50;
-		}
-		
-		
-		if(self.supplyTotal() - self.supplyUsed() == 0
-				&& !cheesed && gasMorpher != null){
-			System.out.println("it tries to cancel!");
-			gasMorpher.cancelMorph();
-			cheesed = true;
-		}
+//		//System.out.println("supply total - supply used = " + (self.supplyTotal() - self.supplyUsed()));
+//		if(self.supplyTotal() - self.supplyUsed() == 0 && gasMorpher == null
+//				&& minerals >= 50){
+//			System.out.println("It added the extractor!");
+//			productionGoal.add(UnitType.Zerg_Extractor);
+//			minerals -= 50;
+//		}
+//		
+//		
+//		if(self.supplyTotal() - self.supplyUsed() == 0
+//				&& !cheesed && gasMorpher != null){
+//			System.out.println("it tries to cancel!");
+//			gasMorpher.cancelMorph();
+//			cheesed = true;
+//		}
 		
 		while(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0 && minerals >= 50){
 		// build zerglings if possible
