@@ -186,6 +186,7 @@ public class ZergTry extends DefaultBWListener {
 		}
 
 		// send the goals down the chain
+		//
 		productionManager.setGoal(productionGoal);
 
 		// attack the unit
