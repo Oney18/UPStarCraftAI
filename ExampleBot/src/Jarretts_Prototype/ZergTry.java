@@ -191,23 +191,23 @@ public class ZergTry extends DefaultBWListener {
 		// attack the unit
 		if (armyCount >= 6) {
 			// pick a building to attack and order an attack
-			if(!enemyUnitLocation.isEmpty())
-			{
-				for (Position pos : enemyUnitLocation) {
-					militaryManager.command(Command.Attack, 1.0, pos);
-					break;
-				}
-			}
-			else if(!enemyPeonLocation.isEmpty())
-			{
-				
-				for (Position pos : enemyPeonLocation) {
-					militaryManager.command(Command.Attack, 1.0, pos);
-					break;
-				}
-			}
+//			if(!enemyUnitLocation.isEmpty())
+//			{
+//				for (Position pos : enemyUnitLocation) {
+//					militaryManager.command(Command.Attack, 1.0, pos);
+//					break;
+//				}
+//			}
+//			else if(!enemyPeonLocation.isEmpty())
+//			{
+//				
+//				for (Position pos : enemyPeonLocation) {
+//					militaryManager.command(Command.Attack, 1.0, pos);
+//					break;
+//				}
+//			}
 			
-			else if(!enemyBuildingLocation.isEmpty())
+			if(!enemyBuildingLocation.isEmpty())
 			{
 				for (Position pos : enemyBuildingLocation) {
 					militaryManager.command(Command.Attack, 1.0, pos);
@@ -303,18 +303,6 @@ public class ZergTry extends DefaultBWListener {
 				// don't
 				if (!enemyBuildingLocation.contains(u.getPosition())) {
 					enemyBuildingLocation.add(u.getPosition());
-				}
-			}
-			else if(u.getType().isWorker()){
-				//check the enemies workers
-				if (!enemyPeonLocation.contains(u.getPosition())) {
-					enemyPeonLocation.add(u.getPosition());
-				}
-			}
-			else if(!u.getType().isNeutral()){
-				//check the enemies soldiers
-				if (!enemyUnitLocation.contains(u.getPosition())) {
-					enemyUnitLocation.add(u.getPosition());
 				}
 			}
 		}
