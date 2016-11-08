@@ -8,7 +8,7 @@ import bwta.BWTA;
 import bwta.BaseLocation;
 import bwta.Chokepoint;
 
-public class ZergTry extends DefaultBWListener {
+public class ZergRush extends DefaultBWListener {
 
 	private Mirror mirror = new Mirror();
 
@@ -25,18 +25,16 @@ public class ZergTry extends DefaultBWListener {
 	
 	private boolean gasMorphing = false;
 	private boolean cheesed = false;
-	private Unit gasMorpher = null;
 	
 	private boolean initDrone = false;
 	private boolean doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
-	
-	private int elapsedTime = 0;
 
 	
 	private HashSet<Position> enemyBuildingLocation;
-	private HashSet<Position> enemyUnitLocation;
-	private HashSet<Position> enemyPeonLocation;
+	private Position enemyBase;
 
+	//just commit ALLLLLLLL your crap
+	
 	public void run() {
 		mirror.getModule().setEventListener(this);
 		mirror.startGame();
@@ -100,8 +98,6 @@ public class ZergTry extends DefaultBWListener {
 			e.printStackTrace();
 		}
 		enemyBuildingLocation = new HashSet<Position>();
-		enemyUnitLocation = new HashSet<Position>();
-		enemyPeonLocation = new HashSet<Position>();
 		
 		for(Unit u : self.getUnits())
 		{
@@ -124,7 +120,7 @@ public class ZergTry extends DefaultBWListener {
 			updateEnemyLocations();
 
 			// give orders to lower tier classes
-			doStuff();
+			doStrategy();
 
 			// update lower tier classes with new information from game
 			productionManager.update();
@@ -137,7 +133,7 @@ public class ZergTry extends DefaultBWListener {
 
 	
 	
-	public void doStuff() {
+	private void doStrategy() {
 		// TODO put the meat of logic in here
 		int armyCount = militaryManager.getArmyCount();
 
@@ -211,7 +207,7 @@ public class ZergTry extends DefaultBWListener {
 			if(!enemyBuildingLocation.isEmpty())
 			{
 				for (Position pos : enemyBuildingLocation) {
-					militaryManager.command(Command.Attack, 1.0, pos);
+					militaryManager.command(Command.Attack, pos);
 					break;
 				}
 			}
@@ -224,75 +220,14 @@ public class ZergTry extends DefaultBWListener {
 
 		// make sure we are scouting
 		if (!isScouting) {
-			militaryManager.command(Command.Scout, 1.0, null);
+			militaryManager.command(Command.Scout, null);
 			isScouting = true;
 		}
 
 	}
 
-	
-
-	/**
-	 * getBuildTile()
-	 * 
-	 * Horribly innefficient algorithm to find a spot to build something '
-	 * Ripped from SSCAIT
-	 * 
-	 * @param builder
-	 *            the drone to morph
-	 * @param buildingType
-	 *            what to morph into
-	 * @param aroundTile
-	 *            the origin tile
-	 * @return the position to build at
-	 */
-	public TilePosition getBuildTile(Unit builder, UnitType buildingType, TilePosition aroundTile) {
-		TilePosition ret = null;
-		int maxDist = 3;
-		int stopDist = 40;
-
-		while ((maxDist < stopDist) && (ret == null)) {
-			for (int i = aroundTile.getX() - maxDist; i <= aroundTile.getX() + maxDist; i++) {
-				for (int j = aroundTile.getY() - maxDist; j <= aroundTile.getY() + maxDist; j++) {
-					if (game.canBuildHere(new TilePosition(i, j), buildingType, builder, false)) {
-						// units that are blocking the tile
-						boolean unitsInWay = false;
-						for (Unit u : game.getAllUnits()) {
-							if (u.getID() == builder.getID())
-								continue;
-							if ((Math.abs(u.getTilePosition().getX() - i) < 4)
-									&& (Math.abs(u.getTilePosition().getY() - j) < 4))
-								unitsInWay = true;
-						}
-						if (!unitsInWay) {
-							return new TilePosition(i, j);
-						}
-						// creep for Zerg
-						if (buildingType.requiresCreep()) {
-							boolean creepMissing = false;
-							for (int k = i; k <= i + buildingType.tileWidth(); k++) {
-								for (int l = j; l <= j + buildingType.tileHeight(); l++) {
-									if (!game.hasCreep(k, l))
-										creepMissing = true;
-									break;
-								}
-							}
-							if (creepMissing)
-								continue;
-						}
-					}
-				}
-			}
-			maxDist += 2;
-		}
-
-		if (ret == null)
-			game.printf("Unable to find suitable build position for " + buildingType.toString());
-		return ret;
-	}
-
 	public static void main(String[] args) {
-		new ZergTry().run();
+		new ZergRush().run();
 	}
 
 	private void updateEnemyLocations() {
@@ -309,8 +244,6 @@ public class ZergTry extends DefaultBWListener {
 		}
 
 		ArrayList<Position> buildingsToRemove = new ArrayList<Position>();
-		ArrayList<Position> peonsToRemove = new ArrayList<Position>();
-		ArrayList<Position> unitsToRemove = new ArrayList<Position>();
 
 		// loop over the visible enemy units that we remember
 

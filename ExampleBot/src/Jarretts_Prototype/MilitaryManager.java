@@ -1,5 +1,5 @@
 package Jarretts_Prototype;
-//package StarcraftAI;
+
 import java.util.*;
 import bwapi.*;
 
@@ -23,7 +23,7 @@ public class MilitaryManager{
 	private ArmyManager armyManager;
 	private BattleManager battleManager;
 	private int armyCount;
-    private Hashtable<UnitType, Double> armyRatio;
+
 
 	/**
 	 * MilitaryManager()
@@ -37,7 +37,6 @@ public class MilitaryManager{
 		militaryUnits = new ArrayList<Unit>();
 		squads = new HashMap<SquadType, Squad>();
 		armyCount = 0;
-		armyRatio = new Hashtable<UnitType, Double>();
 		
 		initSquads();
 		
@@ -49,7 +48,7 @@ public class MilitaryManager{
 	 * initSquads()
 	 * Initialize all Terran squads.
 	 */
-	public void initSquads()
+	private void initSquads()
 	{
 		for(SquadType type : SquadType.values())
 		{
@@ -104,7 +103,6 @@ public class MilitaryManager{
 	{
 		try
 		{
-			//updateArmyRatio();
 			updateArmyCount();
 		}
 		catch(Exception e)
@@ -122,7 +120,7 @@ public class MilitaryManager{
 	 * @param percentCommit - percentage of units to commit to command
 	 * @param position - the position of the commanded
 	 */
-	public void command(Command command, Double percentCommit, Position position)
+	public void command(Command command, Position position)
 	{
 		switch(command)
 		{
@@ -148,30 +146,12 @@ public class MilitaryManager{
     /**
      * updateArmyCount()
      * 
-     * Update the number of military units the bot controls
+     * Update the number of military units the agent controls
      */
     private void updateArmyCount()
     {
     	//TODO if we build more than zerglings then we need to update this
     	armyCount = self.completedUnitCount(UnitType.Zerg_Zergling);
-    }
-    
-    /**
-     * updateArmyRatio()
-     * 
-     * This will update the ratios of each type of unit we have
-     * Right now only have zerglings, so useless to update ratio
-     */
-    public void updateArmyRatio()
-    {
-    	//TODO make better if have other units
-    	armyRatio.put(UnitType.Zerg_Zergling, 1.0);
-    	
-    	if(!squads.get(SquadType.Scout).isEmpty()){
-    		Unit scout = squads.get(SquadType.Scout).getUnits().get(0);
-    		if(!scout.exists())
-    			squads.get(SquadType.Scout).removeUnit(scout);
-    	}
     }
     
     /**
@@ -183,13 +163,4 @@ public class MilitaryManager{
     	return armyCount;
     }
     
-    /**
-     * getUnitRatio()
-     * @param type 
-     * @return The percentage of the army that is the given UnitType
-     */
-    public Double getUnitRatio(UnitType type)
-    {
-    	return armyRatio.get(type);
-    }
 }

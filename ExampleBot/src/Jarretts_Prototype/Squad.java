@@ -1,5 +1,5 @@
 package Jarretts_Prototype;
-//package StarcraftAI;
+
 import java.util.ArrayList;
 
 import bwapi.*;

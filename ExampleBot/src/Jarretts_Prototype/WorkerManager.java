@@ -1,5 +1,5 @@
 package Jarretts_Prototype;
-//package StarcraftAI;
+
 import java.util.*;
 import bwapi.*;
 import bwta.BWTA;
@@ -9,6 +9,10 @@ import bwta.BWTA;
  * the agent owns.
  * 
  * @author Kenny Trowbridge
+ * 
+ * Ported to handle Zerg
+ * 
+ * @author Jarrett Oney
  *
  */
 public class WorkerManager{
@@ -64,15 +68,6 @@ public class WorkerManager{
 			if(worker.isGatheringGas())
 			{
 				gatheringGas = true;
-			}
-		}
-		
-		if(!gatheringGas && self.completedUnitCount(UnitType.Zerg_Extractor)>=1)
-		{
-			Unit worker = getWorker();
-			if(worker != null)
-			{
-				worker.gather(findClosestRefinery(BWTA.getStartLocation(self).getPosition()));
 			}
 		}
 		
@@ -211,35 +206,5 @@ public class WorkerManager{
 		return closest;
 	}
 	
-	/**
-	 * findClosestExtractor()
-	 * Finds the closest extractor to the given position
-	 * 
-	 * @param pos
-	 * @return
-	 */
-	private Unit findClosestRefinery(Position pos){
-		if(pos == null)
-		{
-			return null;
-		}
-		//init closest to first in list
-		Unit closest = null;
-		
-		//find closest mineral
-		for(Unit unit : self.getUnits())
-		{
-			//only check mineral fields
-			if(unit.getType() == UnitType.Zerg_Extractor)
-			{
-				if(closest == null || unit.getDistance(pos) < closest.getDistance(pos))
-				{
-					closest = unit;
-				}
-			}
-		}
-		
-		return closest;
-	}
 }
 
