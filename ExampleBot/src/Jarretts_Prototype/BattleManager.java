@@ -17,15 +17,13 @@ public class BattleManager{
 	//A constant to determine if a unit is "far away" from a position (arbitrary)
 	private static final double FARAWAY = 10.0;
 	
-	private Squad[] squads;
+	private List<Squad> squads;
 	
 	/**
 	 * BattleManager()
 	 * Constructor for the battle Manager class. 
 	 */
-	public BattleManager(){}
-	
-	public BattleManager(Squad[] squads)
+	public BattleManager(List<Squad> squads)
 	{
 		this.squads = squads;
 	}
@@ -38,7 +36,7 @@ public class BattleManager{
 	public void update()
 	{
 		//look at each squad that is in battle
-		ArrayList<Squad> squadsInBattle = checkSquadIsEngaged();
+		List<Squad> squadsInBattle = checkSquadIsEngaged();
 		
 		//manage the battle for every squad in combat
 		for (Squad squad : squadsInBattle)
@@ -54,10 +52,10 @@ public class BattleManager{
 	 * @return a list of all the squads that are currently 
 	 * 		engaged in battle
 	 */
-	public ArrayList<Squad> checkSquadIsEngaged()
+	private List<Squad> checkSquadIsEngaged()
 	{
 		//this list will be returned, holding all of the squads that are in battle
-		ArrayList<Squad> squadsInBattle = null; 
+		List<Squad> squadsInBattle = new ArrayList<Squad>(3); 
 		
 		//add all squads in battle to the list
 		for (Squad squad : squads)
@@ -77,7 +75,7 @@ public class BattleManager{
 	 * 
 	 * @param squad
 	 */
-	public void manageBattle(Squad squad)
+	private void manageBattle(Squad squad)
 	{
 		ArrayList<Unit> allSquadUnits = squad.getUnits();
 		Position attackedUnitPosition = null; 

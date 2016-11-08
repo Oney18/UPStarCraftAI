@@ -26,12 +26,10 @@ public class ArmyManager{
 	private Player self;
 	private Game game;
 	
-	private ArrayList<TilePosition> scoutQueue = new ArrayList<TilePosition>();
 	private HashMap<SquadType, Squad> squads;
-	private TilePosition queuedTile = null;
-	private List<BaseLocation> baseLocations = new ArrayList<BaseLocation>(); 
 	
-	private ArrayList<Position> allPositions = new ArrayList<Position>();
+	
+	private List<Position> allPositions = new ArrayList<Position>();
 	/**
 	 * ctor
 	 * Set up the game, player and squads for the Army Manager. 
@@ -42,22 +40,6 @@ public class ArmyManager{
 		this.squads = squads;
 		this.self = self;
 		this.game = game;
-		
-//		int x = 0, y = 0; 
-//		Position searchPos = new Position(x, y);
-//	
-//		while(searchPos.isValid())
-//		{
-//			while(searchPos.isValid())
-//			{
-//				allPositions.add(searchPos);
-//				x += 32;
-//				searchPos = new Position(x, y);
-//			}
-//			x = 0; 
-//			y += 32; 
-//			searchPos = new Position(x, y);
-//		}
 	}
 
 	/**
@@ -76,7 +58,7 @@ public class ArmyManager{
 	 * defend()
 	 * Positions the defend squad in a defensive position around our base.
 	 */
-	public void defend()
+	public void defend(Position pos)
 	{
 
 	}
