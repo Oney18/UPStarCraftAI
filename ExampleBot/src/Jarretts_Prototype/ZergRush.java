@@ -32,6 +32,8 @@ public class ZergRush extends DefaultBWListener {
 	
 	private HashSet<Position> enemyBuildingLocation;
 	private Position enemyBase;
+	
+	private int[] slowFrames = new int[3];
 
 	//just commit ALLLLLLLL your crap
 	
@@ -91,6 +93,8 @@ public class ZergRush extends DefaultBWListener {
 		BWTA.analyze();
 		System.out.println("Map data ready");
 
+		
+		
 		militaryManager = new MilitaryManager(game, self);
 		try {
 			productionManager = new ProductionManager(game, self);
@@ -115,6 +119,10 @@ public class ZergRush extends DefaultBWListener {
 
 	@Override
 	public void onFrame() {
+		//time checking stuff
+		long startTime = System.nanoTime();
+		
+		
 		try{
 			// update game information
 			updateEnemyLocations();
@@ -129,6 +137,25 @@ public class ZergRush extends DefaultBWListener {
 		catch(Exception e){
 			e.printStackTrace();
 		}
+		
+		long duration = (System.nanoTime() - startTime) / 1000000;
+		System.out.println(duration);
+		if(duration > 10000) //10s
+		{
+			slowFrames[0]++;
+			System.out.println("10s frame; current amount is " + slowFrames[0]); 
+		}
+		else if(duration > 1000) //1s
+		{
+			slowFrames[1]++;
+			System.out.println("1s frame; current amount is " + slowFrames[1]); 
+		}
+		else if(duration > 55) //55ms
+		{
+			slowFrames[2]++;
+			System.out.println("55ms frame; current amount is " + slowFrames[2]); 
+		}
+		
 	}
 
 	

@@ -128,7 +128,7 @@ public class MilitaryManager{
 				armyManager.engage(position);
 				break;
 			case Defend:
-				armyManager.defend();
+				armyManager.defend(position);
 				break;
 			case Scout:
 				if(armyCount > 20)

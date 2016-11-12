@@ -23,9 +23,8 @@ public class BattleManager{
 	 * BattleManager()
 	 * Constructor for the battle Manager class. 
 	 */
-	public BattleManager(List<Squad> squads)
+	public BattleManager()
 	{
-		this.squads = squads;
 	}
 	
 	/**
