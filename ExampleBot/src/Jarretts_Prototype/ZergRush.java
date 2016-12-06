@@ -2,6 +2,7 @@ package Jarretts_Prototype;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import bwapi.*;
 import bwta.BWTA;
@@ -24,6 +25,8 @@ public class ZergRush extends DefaultBWListener {
 	private boolean buildingPool = false;
 	
 	private boolean gasMorphing = false;
+	private boolean gasMorphingStarted = false;
+	private Unit gasMorpher;
 	private boolean cheesed = false;
 	
 	private boolean initDrone = false;
@@ -34,8 +37,6 @@ public class ZergRush extends DefaultBWListener {
 	private Position enemyBase;
 	
 	private int[] slowFrames = new int[3];
-
-	//just commit ALLLLLLLL your crap
 	
 	public void run() {
 		mirror.getModule().setEventListener(this);
@@ -45,26 +46,42 @@ public class ZergRush extends DefaultBWListener {
 	@Override
 	public void onUnitCreate(Unit unit) {
 
-		if (unit.getType().isWorker()) {
+		if (unit.getType().isWorker()) 
+		{
+			System.out.println("new worker from oncreate");
 			productionManager.addUnit(unit);
 			
-		} else if (unit.getType() == UnitType.Zerg_Larva) {
+		} 
+		else if (unit.getType() == UnitType.Zerg_Larva)
+		{
 			productionManager.addUnit(unit);
-			
-		} else if (!unit.getType().isNeutral()) {
+		} 
+		else if (!unit.getType().isNeutral()) 
+		{
 			// Military Unit
 			militaryManager.addUnit(unit);
-		} else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
-			buildingPool = false;
+		} 
+		else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
+		{
+			buildingPool = false; 
+		} 
+		else if(unit.getType() == UnitType.Zerg_Extractor)
+		{
+			
+		}
+		
 		
 	}
 	
 	@Override
 	public void onUnitMorph(Unit unit){
 		if(unit.getType() == UnitType.Zerg_Extractor){
-			
+			System.out.println("extractor is here");
+			gasMorphing = true; //set flag to cancel check
+			gasMorpher = unit;
 		}
 		else if (unit.getType().isWorker()) {
+			System.out.println("new worker from onMorph");
 			productionManager.addUnit(unit);
 			
 		} else if (unit.getType() == UnitType.Zerg_Larva) {
@@ -75,16 +92,19 @@ public class ZergRush extends DefaultBWListener {
 			militaryManager.addUnit(unit);
 		}
 		
-		System.out.println("This unit proc'd onUnitMorph: " + unit.getType());
+		//System.out.println("This unit proc'd onUnitMorph: " + unit.getType());
 	}
 
 	@Override
 	public void onStart() {
 		game = mirror.getGame();
 		self = game.self();
+		
+		//sets the ability to manually control bot during replay
+		game.enableFlag(1);
 
-		// slow is bad
-		game.setLocalSpeed(5);
+		// sets speed to be way faster
+		game.setLocalSpeed(10);
 
 		// Use BWTA to analyze map
 		// This may take a few minutes if the map is processed first time!
@@ -99,6 +119,7 @@ public class ZergRush extends DefaultBWListener {
 		try {
 			productionManager = new ProductionManager(game, self);
 		} catch (Exception e) {
+			System.out.println("******PRODUCTION MANAGER ERROR******");
 			e.printStackTrace();
 		}
 		enemyBuildingLocation = new HashSet<Position>();
@@ -121,6 +142,10 @@ public class ZergRush extends DefaultBWListener {
 	public void onFrame() {
 		//time checking stuff
 		long startTime = System.nanoTime();
+		// print framerate
+		game.drawTextScreen(0, 0,  "FPS: " + game.getFPS() );
+	    game.drawTextScreen(0, 20, "Avg FPS: " + game.getAverageFPS() );
+	    game.drawTextScreen(0, 40, "Supply Used: " + self.supplyUsed());
 		
 		
 		try{
@@ -132,14 +157,15 @@ public class ZergRush extends DefaultBWListener {
 
 			// update lower tier classes with new information from game
 			productionManager.update();
-			militaryManager.update();
+			//militaryManager.update();
 		}
 		catch(Exception e){
+			System.out.println("******PRODUCTION MANAGER ERROR******");
 			e.printStackTrace();
 		}
 		
 		long duration = (System.nanoTime() - startTime) / 1000000;
-		System.out.println(duration);
+		//System.out.println(duration);
 		if(duration > 10000) //10s
 		{
 			slowFrames[0]++;
@@ -161,7 +187,9 @@ public class ZergRush extends DefaultBWListener {
 	
 	
 	private void doStrategy() {
-		// TODO put the meat of logic in here
+		if(game.isPaused())
+			return;
+		
 		int armyCount = militaryManager.getArmyCount();
 
 		ArrayList<UnitType> productionGoal = new ArrayList<UnitType>();
@@ -169,7 +197,7 @@ public class ZergRush extends DefaultBWListener {
 		// grab our resources
 		int minerals = self.minerals();
 
-		//starting condition, build a drone
+		//starting condition, build a drone, then never again. can be toggled
 		if(!initDrone && doInitDrone)
 		{
 			productionGoal.add(UnitType.Zerg_Drone);
@@ -183,6 +211,115 @@ public class ZergRush extends DefaultBWListener {
 			productionGoal.add(UnitType.Zerg_Spawning_Pool);
 			minerals -= 200;
 			buildingPool = true;
+		}
+		
+		while(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0 && minerals >= 50 && self.supplyUsed() < 18)
+		{
+			// build zerglings if possible
+				productionGoal.add(UnitType.Zerg_Zergling);
+				minerals -= 50;
+		}
+		
+		
+		// EXTRACTOR BULLSHIT TO BE ADDED HERE
+		if (gasMorphing) 
+		{
+			System.out.println("checking to cancel");
+			System.out.println("supply used: "+ self.supplyUsed());
+			if(self.supplyUsed() == 18)
+			{
+				//productionManager.cancelGas();
+				productionManager.cancelGas(gasMorpher);
+				gasMorphing = false;
+				gasMorphingStarted = false;
+			}
+				
+		}
+		if (self.allUnitCount(UnitType.Zerg_Extractor) < 1 && minerals >= 50 && self.supplyUsed() == 18
+				&& !gasMorphingStarted) 
+		{
+			System.out.println("starting extractor");
+			productionManager.makeGas();
+			minerals -= 50;
+			gasMorphingStarted = true;
+		}
+		
+		
+		
+		//EXTRACTOR BULLSHIT ENDS HERE
+		
+		List<Unit> enemyBlds = new ArrayList<Unit>();
+		List<Unit> enemyWorkers = new ArrayList<Unit>();
+		List<Unit> enemyCores = new ArrayList<Unit>();
+		List<Unit> enemyProblems = new ArrayList<Unit>();
+		Unit overlord = null;
+		for(Unit unit : game.getAllUnits())
+		{
+			if(!unit.getPlayer().isEnemy(self) && unit.exists())
+			{
+				if(unit.getType() == UnitType.Zerg_Overlord)
+				{
+					overlord = unit;
+				}
+			}
+			else if(unit.exists() && unit.isVisible() && unit.getPlayer().isEnemy(self) && unit.isDetected())
+			{
+				game.drawTextScreen(0, 60, "Unit: " + unit.toString());
+				if(unit.getType().isBuilding())
+				{
+					if(unit.getType() == UnitType.Zerg_Hatchery 
+							|| unit.getType() == UnitType.Terran_Command_Center
+							|| unit.getType() == UnitType.Protoss_Nexus)
+					{
+						enemyCores.add(unit);
+					}
+					else
+					{
+						enemyBlds.add(unit);
+					}
+				}
+				else if(unit.getType().isWorker())
+				{
+					enemyWorkers.add(unit);
+				}
+				
+				else if(unit.getType().canAttack())
+				{
+					//game.pauseGame();
+					enemyProblems.add(unit);
+				}
+			}
+		}
+		game.drawTextScreen(0, 80, "workercount: "+ WorkerManager.getDroneCount());
+		
+		Unit target = null;
+		for(Unit unit : game.self().getUnits())
+		{
+			if(unit.getType().isBuilding()) { /**do nothing with buildings**/ }
+			if(unit.getType().isWorker()) { /**should already be handled in Production Manager**/ }
+			if(unit.getType() == UnitType.Zerg_Zergling) { 
+				if(!enemyProblems.isEmpty())//attack the closest "threat",
+				{
+					unit.attack(findClosest(enemyProblems, unit));
+				}
+				else if(!enemyWorkers.isEmpty())//else attack closest worker, 
+				{
+					unit.attack(findClosest(enemyWorkers, unit));
+				}
+				else if(!enemyCores.isEmpty())//else attack core,
+				{
+					unit.attack(findClosest(enemyCores, unit));
+				}
+				else if(!enemyBlds.isEmpty())//else attack buildings.
+				{
+					unit.attack(findClosest(enemyBlds, unit));
+				}
+				else//else go to overlord, 
+				{
+					unit.move(overlord.getPosition());
+				}
+			}
+			if(unit.getType() == UnitType.Zerg_Overlord) { /**handled in scouting**/  }
 		}
 
 
@@ -202,14 +339,9 @@ public class ZergRush extends DefaultBWListener {
 //			cheesed = true;
 //		}
 		
-		while(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0 && minerals >= 50){
-		// build zerglings if possible
-			productionGoal.add(UnitType.Zerg_Zergling);
-			minerals -= 50;
-		}
+		
 
 		// send the goals down the chain
-		// Keegan
 		productionManager.setGoal(productionGoal);
 
 		// attack the unit
@@ -241,6 +373,7 @@ public class ZergRush extends DefaultBWListener {
 		}
 
 		// if we can't find the enemy continue scouting
+		// lol what is this supposed to do? -Will-
 		if (enemyBuildingLocation.isEmpty() && armyCount > 20) {
 			isScouting = false;
 		}
@@ -251,6 +384,22 @@ public class ZergRush extends DefaultBWListener {
 			isScouting = true;
 		}
 
+	}
+	
+	//finds closest thing from list from unit
+	public static Unit findClosest(List<Unit> list, Unit u)
+	{
+		Unit returnUnit = null;
+		int distance = Integer.MAX_VALUE;
+		for(Unit unit : list)
+		{
+			if(unit.getPosition().getApproxDistance(u.getPosition()) < distance)
+			{
+				distance = unit.getPosition().getApproxDistance(u.getPosition());
+				returnUnit = unit;
+			}
+		}
+		return returnUnit;
 	}
 
 	public static void main(String[] args) {

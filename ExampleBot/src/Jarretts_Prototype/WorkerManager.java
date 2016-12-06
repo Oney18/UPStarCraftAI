@@ -19,7 +19,7 @@ public class WorkerManager{
 	
 	private Player self = null;
 	private List<Unit> neutralUnits = new ArrayList<Unit>();
-	private List<Unit> workerList = new ArrayList<Unit>(10);
+	private static List<Unit> workerList = new ArrayList<Unit>(10);
 	private List<Unit> larvae = new ArrayList<Unit>(10);
 	
 	/**
@@ -43,8 +43,6 @@ public class WorkerManager{
 		List<Unit> workersToRemove = new ArrayList<Unit>();
 		List<Unit> larvaeToRemove = new ArrayList<Unit>();
 		
-		boolean gatheringGas = false;
-		
 		for(Unit worker : workerList)
 		{			
 			if(worker.isIdle() && worker.isCompleted())
@@ -63,11 +61,6 @@ public class WorkerManager{
 			if(!worker.exists())
 			{
 				workersToRemove.add(worker);
-			}
-			
-			if(worker.isGatheringGas())
-			{
-				gatheringGas = true;
 			}
 		}
 		
@@ -118,7 +111,7 @@ public class WorkerManager{
 				availableWorker = worker;
 			}
 		}
-		
+		workerList.remove(availableWorker);
 		return availableWorker;
 	}
 	
@@ -142,7 +135,7 @@ public class WorkerManager{
 	 * 
 	 * @return the number of drones controlled by the player
 	 */
-	public int getDroneCount()
+	public static int getDroneCount()
 	{
 		return workerList.size();
 	}
@@ -167,6 +160,7 @@ public class WorkerManager{
 		//add only worker units
 		if (unit != null && unit.getType() == UnitType.Zerg_Drone)
 		{
+			System.out.println("re-added the worker");
 			workerList.add(unit);
 		}
 		else if(unit != null && unit.getType() == UnitType.Zerg_Larva)
@@ -174,6 +168,7 @@ public class WorkerManager{
 			larvae.add(unit);
 		}
 	}
+	
 
 	/**
 	 * findClosestMineral()

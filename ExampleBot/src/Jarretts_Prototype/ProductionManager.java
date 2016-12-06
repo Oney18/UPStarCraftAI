@@ -18,6 +18,7 @@ import bwta.BWTA;
  * 
  * This is ported to Zerg
  * @author Jarrett Oney
+ * @author William Goolkasian
  */
 public class ProductionManager {
 	
@@ -105,41 +106,41 @@ public class ProductionManager {
 	 */
 	private void buildBuilding(UnitType buildingType)
 	{
-		if(buildingType.isBuilding())
-		{
-			Unit builder = workerManager.getWorker();
-			System.out.println("It recognizes the building?");
-			// make sure the builder is not null
-			if(builder != null && game.canMake(buildingType, builder))
+		Unit builder = workerManager.getWorker();
+		// make sure the builder is not null
+		if(builder != null && game.canMake(buildingType, builder))
+		{		
+			TilePosition buildSpot = getBuildTile(builder, buildingType, builder.getTilePosition());
+			if(buildSpot != null)
 			{
-				if(buildingType == UnitType.Zerg_Extractor){
-					System.out.println("builder is not null, tries to look for geyser");
-					Unit closestGeyser = null;
-					Position startArea = BWTA.getStartLocation(self).getPosition();
+				builder.build(buildingType, buildSpot);
+			}
+		}
+	}
+	
+	public void makeGas()
+	{
+		Unit builder = workerManager.getWorker();
+		// make sure the builder is not null
+		if(builder != null)
+		{	
+			System.out.println("builder is not null, tries to look for geyser");
+			Unit closestGeyser = null;
+			Position startArea = BWTA.getStartLocation(self).getPosition();
+			
+			//loop through game's geysers, get closest to our base
+			for(Unit geyser : game.getGeysers() ){
+				if(game.canBuildHere(geyser.getTilePosition(), UnitType.Zerg_Extractor, builder, true)){
 					
-					//loop through game's geysers, get closest to our base
-					for(Unit geyser : game.getGeysers() ){
-						if(game.canBuildHere(geyser.getTilePosition(), buildingType, builder, true)){
-							
-							//calculate distance, if less then is closes
-							if(closestGeyser == null || closestGeyser.getDistance(startArea) > geyser.getDistance(startArea)){
-								closestGeyser = geyser;
-							}					
-						}
-					}
-					gasMorpher = builder;
-					builder.build(buildingType, closestGeyser.getTilePosition());
-					System.out.println("Sent the builder?");
-				}
-				//average building, need not geyser
-				else{					
-					TilePosition buildSpot = getBuildTile(builder, buildingType, builder.getTilePosition());
-					
-					if(buildSpot != null){
-						builder.build(buildingType, buildSpot);
-					}
+					//calculate distance, if less then is closes
+					if(closestGeyser == null || closestGeyser.getDistance(startArea) > geyser.getDistance(startArea)){
+						closestGeyser = geyser;
+					}					
 				}
 			}
+			gasMorpher = builder;
+			gasMorpher.build(UnitType.Zerg_Extractor, closestGeyser.getTilePosition());
+			System.out.println("Sent the builder?");
 		}
 	}
 	
@@ -147,10 +148,12 @@ public class ProductionManager {
 	 * cancelGas()
 	 * Cancels the extractor morph to create cheese
 	 */
-	public void cancelGas()
+	public void cancelGas(Unit unit)
 	{
-		if(gasMorpher != null)
-			gasMorpher.cancelMorph();
+		System.out.println("cancelgas is called");
+		unit.cancelMorph();
+		workerManager.addUnit(gasMorpher);
+		gasMorpher = null;
 	}
 	
 	/**
