@@ -94,7 +94,7 @@ public class ArmyManager{
     	}
 		
 		//Add home as the last place to go
-		basePoss.add(BWTA.getStartLocation(self).getPosition());
+		//basePoss.add(BWTA.getStartLocation(self).getPosition());
 		
 		squads.get(SquadType.Scout).moveQueue(basePoss);
 	}
