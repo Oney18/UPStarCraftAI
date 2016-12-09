@@ -1,4 +1,5 @@
-package Wills_One_CLass;
+package Wills_One_Class;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -308,7 +309,10 @@ public class ZergRush2 extends DefaultBWListener {
 					}
 					else
 					{
+						//this will still tell all 'stuck" zergs to do a command every frame
+						//which we believe to be the cause of the "stuck bug".charAt(hence does nothing)
 						zergling.attack(attackTarget);
+						print(test);
 					}
 				}
 			}
