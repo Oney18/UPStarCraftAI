@@ -17,32 +17,32 @@ public class ZergRush2 extends DefaultBWListener {
 
 	private Player self;
 
-	private boolean isScouting = false;
+	private boolean isScouting;
 	
-	private boolean builtPool = false;
-	private boolean buildingPool = false;
-	private boolean gettingPoolWorker = false;
+	private boolean builtPool;
+	private boolean buildingPool;
+	private boolean gettingPoolWorker;
 	
-	private boolean gasMorphingStarted = false;
-	private boolean gasMorphing = false;
-	private boolean gasMorphing2 = false;
+	private boolean gasMorphingStarted;
+	private boolean gasMorphing;
+	private boolean gasMorphing2;
 	private Unit gasMorpher;
 	private Unit poolMorpherDrone;
 	private TilePosition poolPos;
-	private boolean cheesed = false;
+	private boolean cheesed;
 	private Unit overlord;
 	private Unit attackTarget;
 	private int minerals;
 	
-	ArrayList<Position> basePoss = new ArrayList<Position>();
+	List<Position> basePoss;
 	
 	private boolean doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
 
 	
 	private HashSet<Position> enemyBuildingLocation;
-	private List<Unit> larvae = new ArrayList<Unit>();
-	private List<Unit> drones = new ArrayList<Unit>();
-	private List<Unit> zerglings = new ArrayList<Unit>();
+	private List<Unit> larvae;
+	private List<Unit> drones;
+	private List<Unit> zerglings;
 	private Position enemyBase;
 	
 	public static void main(String[] args) {
@@ -60,6 +60,24 @@ public class ZergRush2 extends DefaultBWListener {
 	public void onStart() {
 		game = mirror.getGame();
 		self = game.self();
+		
+		//inititalize the data structures
+		isScouting = false;
+		
+		builtPool = false;
+		buildingPool = false;
+		gettingPoolWorker = false;
+		
+		gasMorphingStarted = false;
+		gasMorphing = false;
+		gasMorphing2 = false;
+		
+		cheesed = false;
+		
+		basePoss = new ArrayList<Position>();
+		larvae = new ArrayList<Unit>();
+		drones = new ArrayList<Unit>();
+		zerglings = new ArrayList<Unit>();
 		
 		//sets the ability to manually control bot during replay
 		game.enableFlag(1);
@@ -312,7 +330,6 @@ public class ZergRush2 extends DefaultBWListener {
 						//this will still tell all 'stuck" zergs to do a command every frame
 						//which we believe to be the cause of the "stuck bug".charAt(hence does nothing)
 						zergling.attack(attackTarget);
-						print(test);
 					}
 				}
 			}
