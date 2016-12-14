@@ -9,7 +9,7 @@ import bwta.BWTA;
 import bwta.BaseLocation;
 import bwta.Chokepoint;
 
-public class ZergRush2 extends DefaultBWListener {
+public class ZergRushCompetition extends DefaultBWListener {
 
 	private Mirror mirror = new Mirror();
 
@@ -35,6 +35,7 @@ public class ZergRush2 extends DefaultBWListener {
 	private int minerals;
 	
 	List<Position> basePoss;
+	boolean[] baseChecked;
 	
 	private boolean doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
 
@@ -46,7 +47,7 @@ public class ZergRush2 extends DefaultBWListener {
 	private Position enemyBase;
 	
 	public static void main(String[] args) {
-		new ZergRush2().run();
+		new ZergRushCompetition().run();
 	}
 	
 	private int[] slowFrames = new int[3];
@@ -74,6 +75,12 @@ public class ZergRush2 extends DefaultBWListener {
 		
 		cheesed = false;
 		
+		gasMorpher = null;
+		poolMorpherDrone = null;
+		poolPos = null;
+		
+		enemyBase = null;
+		
 		basePoss = new ArrayList<Position>();
 		larvae = new ArrayList<Unit>();
 		drones = new ArrayList<Unit>();
@@ -95,6 +102,10 @@ public class ZergRush2 extends DefaultBWListener {
 		enemyBuildingLocation = new HashSet<Position>();
 		
 		FillBasePositions();
+		
+		for(int i = 0; i < baseChecked.length; i++)
+			baseChecked[i] = false;
+
 		//TODO move overlord
 		
 	}
@@ -145,7 +156,7 @@ public class ZergRush2 extends DefaultBWListener {
 	
 	
 	private void doStrategy() {
-		
+
 		//first and foremost, send all workers to go gather materials and delete dead ones
 		for(Unit drone : drones)
 		{			
@@ -157,7 +168,7 @@ public class ZergRush2 extends DefaultBWListener {
 					drone.gather(closestMineral);
 				}
 			}
-			
+
 			//save dead units for deletion	
 			if(!drone.exists())
 			{
@@ -167,7 +178,7 @@ public class ZergRush2 extends DefaultBWListener {
 
 		// grab our resources
 		minerals = self.minerals();
-		
+
 		// build a spawning pool when we can
 		if ( !buildingPool && minerals >= 180 && drones.size()>0) 
 		{
@@ -209,8 +220,8 @@ public class ZergRush2 extends DefaultBWListener {
 				}
 			}
 		}
-		
-		
+
+
 		// EXTRACTOR BULLSHIT TO BE ADDED HERE
 		if ((gasMorphing && self.supplyUsed() == 16 && !cheesed) || gasMorphing2) 
 		{
@@ -240,8 +251,8 @@ public class ZergRush2 extends DefaultBWListener {
 		}
 		//EXTRACTOR BULLSHIT ENDS HERE
 
-		
-		
+
+
 		//else build zerglings all the way up to 9(18 because of 2 multiplier
 		while(builtPool && minerals >= 50 && self.supplyUsed() <= 16 && larvae.size() > 0)
 		{
@@ -251,12 +262,31 @@ public class ZergRush2 extends DefaultBWListener {
 			larva.morph(UnitType.Zerg_Zergling); //morph
 			minerals -= 50;
 		}
-		
+
 		//fill lists of all visible enemy units
 		List<Unit> enemyBlds = new ArrayList<Unit>();
 		List<Unit> enemyWorkers = new ArrayList<Unit>();
 		List<Unit> enemyCores = new ArrayList<Unit>();
 		List<Unit> enemyProblems = new ArrayList<Unit>();
+
+		//check overlord spot, give orders
+		if(enemyBase == null)
+		{
+			Position overlordSpot = overlord.getPosition();
+			if(basePoss.contains(overlordSpot))
+				baseChecked[basePoss.indexOf(overlordSpot)] = true;		
+
+			for(int i = 0; i < basePoss.size(); i++)
+				if(!baseChecked[i])
+					{
+						overlord.move(basePoss.get(i));
+						break;
+					}
+		}
+		else
+			overlord.move(enemyBase);
+
+
 		for(Unit unit : game.enemy().getUnits())
 		{
 			if(unit.exists() && unit.isVisible() && unit.isDetected())
@@ -272,71 +302,86 @@ public class ZergRush2 extends DefaultBWListener {
 							|| unit.getType() == UnitType.Protoss_Nexus)
 					{
 						enemyCores.add(unit);
+						
+						if(enemyBase == null)
+							enemyBase = unit.getPosition();
+						
 					}
 					else
-					{
 						//TODO make a way to sort buildings based on priority. those that can attack back should be higher.
 						enemyBlds.add(unit);
 					}
-				}
-				else if(unit.getType().isWorker())
-				{
-					enemyWorkers.add(unit);
-				}
-			}
-		}
-		if(zerglings.size()>0)
-		{
-			if(!enemyProblems.isEmpty()) //target closest threat
-			{
-				attackTarget = findClosest(enemyProblems, zerglings.get(0));
-			}
-			else if(!enemyWorkers.isEmpty())//else target closest worker, 
-			{
-				attackTarget = findClosest(enemyWorkers, zerglings.get(0));			
-			}
-			else if(!enemyCores.isEmpty())//else target core,
-			{
-				attackTarget = findClosest(enemyCores, zerglings.get(0));		
-			}
-			else if(!enemyBlds.isEmpty())//else target buildings.
-			{
-				attackTarget = findClosest(enemyBlds, zerglings.get(0));		
-			}
-			else
-			{
-				attackTarget = null; //will later say then move to overlord
-			}
-			
-			for(Unit zergling : zerglings)
-			{
-				//save dead units for deletion	
-				if(!zergling.exists())
-				{
-					zerglings.remove(zergling);
-				}
-				else if (!zergling.isAttacking())
-				{
-					if(attackTarget == null || !attackTarget.exists())
+					else if(unit.getType().isWorker())
 					{
-						if(zerglings.size() > 6)
+						enemyWorkers.add(unit);
+					}
+				}
+			}
+			if(zerglings.size()>0)
+			{
+				if(!enemyProblems.isEmpty()) //target closest threat
+				{
+					attackTarget = findClosest(enemyProblems, zerglings.get(0));
+				}
+				else if(!enemyWorkers.isEmpty())//else target closest worker, 
+				{
+					attackTarget = findClosest(enemyWorkers, zerglings.get(0));			
+				}
+				else if(!enemyCores.isEmpty())//else target core,
+				{
+					attackTarget = findClosest(enemyCores, zerglings.get(0));		
+				}
+				else if(!enemyBlds.isEmpty())//else target buildings.
+				{
+					attackTarget = findClosest(enemyBlds, zerglings.get(0));		
+				}
+				else
+				{
+					attackTarget = null; //will later say then move to overlord
+				}
+
+				for(Unit zergling : zerglings)
+				{
+					//save dead units for deletion	
+					if(!zergling.exists())
+					{
+						zerglings.remove(zergling);
+					}
+					else if (!zergling.isAttacking())
+					{
+						if(attackTarget == null || !attackTarget.exists())
+						{
+							if(zerglings.size() > 6)
 							{
-								//zergling.move(overlord.getPosition());
-								zergling.move(basePoss.get(0));
+								Position zergSpot = zergling.getPosition();
+								
+								if(enemyBase == null)
+								{
+									if(basePoss.contains(zergSpot))
+										baseChecked[basePoss.indexOf(zergSpot)] = true;
+									
+									for(int i = basePoss.size() - 1; i > -1; i--)
+										if(!baseChecked[i])
+										{
+											zergling.move(basePoss.get(i));
+											break;
+										}
+								}
+								else
+									zergling.move(enemyBase);
 							}
-					}
-					else
-					{
-						//this will still tell all 'stuck" zergs to do a command every frame
-						//which we believe to be the cause of the "stuck bug".charAt(hence does nothing)
-						zergling.attack(attackTarget);
+						}
+						else
+						{
+							//this will still tell all 'stuck" zergs to do a command every frame
+							//which we believe to be the cause of the "stuck bug".charAt(hence does nothing)
+							zergling.attack(attackTarget);
+						}
 					}
 				}
 			}
 		}
-		
-		
-	}
+
 	
 	@Override
 	public void onUnitCreate(Unit unit) {
@@ -419,7 +464,7 @@ public class ZergRush2 extends DefaultBWListener {
 	public void onUnitDestroy(Unit unit){
 		if(unit.getPlayer().isEnemy(self))
 		{
-			System.out.println("got a bitch!");
+			//System.out.println("got a bitch!");
 			/*if(unit.getType().canAttack())
 			{
 				enemyProblems.remove(unit);
@@ -514,17 +559,19 @@ public class ZergRush2 extends DefaultBWListener {
 	public void FillBasePositions()
 	{
 		List<BaseLocation> baseLocations = BWTA.getStartLocations();
-		
+		int size = 0;
 		for(BaseLocation base : baseLocations)
 		{			
 			// if base location is not start location and a starting location add it
 			if (!base.getPosition().equals(BWTA.getStartLocation(self).getPosition()))
 			{
 				basePoss.add(base.getPosition());
+				size++;
 			}
     	}
 	    System.out.println("basePosSize: "+ basePoss.size());
 	    System.out.println("basePoses: "+ basePoss);
+	    baseChecked = new boolean[size];
 	}
 	
 	/**
