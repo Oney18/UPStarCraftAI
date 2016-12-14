@@ -16,8 +16,6 @@ public class ZergRushCompetition extends DefaultBWListener {
 	private Game game;
 
 	private Player self;
-
-	private boolean isScouting;
 	
 	private boolean builtPool;
 	private boolean buildingPool;
@@ -37,7 +35,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 	List<Position> basePoss;
 	boolean[] baseChecked;
 	
-	private boolean doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
+	private boolean doInitDrone;
 
 	
 	private HashSet<Position> enemyBuildingLocation;
@@ -63,7 +61,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		self = game.self();
 		
 		//inititalize the data structures
-		isScouting = false;
+		doInitDrone = true; //TOGGLE THIS FOR INITIAL DRONE
 		
 		builtPool = false;
 		buildingPool = false;
@@ -87,7 +85,8 @@ public class ZergRushCompetition extends DefaultBWListener {
 		zerglings = new ArrayList<Unit>();
 		
 		//sets the ability to manually control bot during replay
-		game.enableFlag(1);
+		//game.enableFlag(1);
+		//Jarrett - unenabled just in case we forget to for final release; will cause disqual
 
 		// sets speed to be way faster
 		game.setLocalSpeed(10);
@@ -269,13 +268,19 @@ public class ZergRushCompetition extends DefaultBWListener {
 		List<Unit> enemyCores = new ArrayList<Unit>();
 		List<Unit> enemyProblems = new ArrayList<Unit>();
 
-		//check overlord spot, give orders
+		
+		/**OVERLORD SCOUTING**/
+		
 		if(enemyBase == null)
 		{
-			Position overlordSpot = overlord.getPosition();
-			if(basePoss.contains(overlordSpot))
-				baseChecked[basePoss.indexOf(overlordSpot)] = true;		
 
+			//refresh the lists by seeing what is visible
+			for(Position pos : basePoss)
+			{
+				if(game.isVisible(pos.toTilePosition()) && !baseChecked[basePoss.indexOf(pos)])
+					baseChecked[basePoss.indexOf(pos)] = true;
+			}
+			
 			for(int i = 0; i < basePoss.size(); i++)
 				if(!baseChecked[i])
 					{
@@ -285,8 +290,11 @@ public class ZergRushCompetition extends DefaultBWListener {
 		}
 		else
 			overlord.move(enemyBase);
+		
+		/**END OVERLORD SCOUTING**/
 
 
+		
 		for(Unit unit : game.enemy().getUnits())
 		{
 			if(unit.exists() && unit.isVisible() && unit.isDetected())
