@@ -30,6 +30,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 	private boolean cheesed;
 	private Unit overlord;
 	private Unit attackTarget;
+	private Unit lastFrameAttackTarget;
 	private int minerals;
 	
 	List<Position> basePoss;
@@ -43,6 +44,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 	private List<Unit> drones;
 	private List<Unit> zerglings;
 	private Position enemyBase;
+	private Position homeBase;
 	
 	public static void main(String[] args) {
 		new ZergRushCompetition().run();
@@ -78,6 +80,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		poolPos = null;
 		
 		enemyBase = null;
+		homeBase = null;
 		
 		basePoss = new ArrayList<Position>();
 		larvae = new ArrayList<Unit>();
@@ -85,7 +88,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		zerglings = new ArrayList<Unit>();
 		
 		//sets the ability to manually control bot during replay
-		//game.enableFlag(1);
+		game.enableFlag(1);
 		//Jarrett - unenabled just in case we forget to for final release; will cause disqual
 
 		// sets speed to be way faster
@@ -125,6 +128,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 	    game.drawTextScreen(0, 80, "larvaeCount: "+ larvae.size());
 	    game.drawTextScreen(0, 100, "Zergling Size: "+ zerglings.size());
 	    game.drawTextScreen(0, 110, "Minerals: "+ minerals);
+	    game.drawTextScreen(0, 130, "basePos: "+ enemyBase);
 	    
 		// update game information
 		updateEnemyLocations();
@@ -202,23 +206,22 @@ public class ZergRushCompetition extends DefaultBWListener {
 			}
 			else if(minerals >=200) //anything over 200
 			{
-				if(poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition()))
-				{
 					poolMorpherDrone.build(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition());
 					if(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0)
 					{
 						buildingPool = true;
+						
 					}
-					minerals -= 200;
-				}
-				else
-				{
-					//maybe still moving, let it keep moving to the spot we found works
-					//poolMorpherDrone.move(poolPos.toPosition());
-					//if you command it to move, it gets mad and won't obey. too many commands
-				}
+					
+			}
+			if(!poolMorpherDrone.isMoving() && poolMorpherDrone.getPosition() == poolPos.toPosition())
+			{
+				//maybe still moving, let it keep moving to the spot we found works
+				poolMorpherDrone.move(homeBase);
+				//if you command it to move, it gets mad and won't obey. too many commands
 			}
 		}
+		minerals = self.minerals();
 
 
 		// EXTRACTOR BULLSHIT TO BE ADDED HERE
@@ -289,7 +292,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 					}
 		}
 		else
-			overlord.move(enemyBase);
+			overlord.move(homeBase);
 		
 		/**END OVERLORD SCOUTING**/
 
@@ -310,10 +313,8 @@ public class ZergRushCompetition extends DefaultBWListener {
 							|| unit.getType() == UnitType.Protoss_Nexus)
 					{
 						enemyCores.add(unit);
-						
 						if(enemyBase == null)
 							enemyBase = unit.getPosition();
-						
 					}
 					else
 						//TODO make a way to sort buildings based on priority. those that can attack back should be higher.
@@ -359,35 +360,45 @@ public class ZergRushCompetition extends DefaultBWListener {
 					{
 						if(attackTarget == null || !attackTarget.exists())
 						{
-							if(zerglings.size() > 6)
+							Position zergSpot = zergling.getPosition();
+							if(getUnchecked() == 1)
 							{
-								Position zergSpot = zergling.getPosition();
-								
-								if(enemyBase == null)
+								for(int i=0; i<basePoss.size(); i++)
 								{
-									if(basePoss.contains(zergSpot))
-										baseChecked[basePoss.indexOf(zergSpot)] = true;
-									
-									for(int i = basePoss.size() - 1; i > -1; i--)
-										if(!baseChecked[i])
-										{
-											zergling.move(basePoss.get(i));
-											break;
-										}
+									if(!baseChecked[i])
+										enemyBase = basePoss.get(i); //zergling.move(basePoss.get(i));
 								}
-								else
-									zergling.move(enemyBase);
 							}
+							if(enemyBase == null)
+							{
+								if(basePoss.contains(zergSpot))
+									baseChecked[basePoss.indexOf(zergSpot)] = true;
+								for(int i = basePoss.size() - 1; i > -1; i--)
+									if(!baseChecked[i])
+									{
+										System.out.println("move order");
+										zergling.move(basePoss.get(i));
+										break;
+									}
+							}
+							else
+							{
+								zergling.move(enemyBase);
+							}
+							
 						}
-						else
+						else if(lastFrameAttackTarget != attackTarget)
 						{
 							//this will still tell all 'stuck" zergs to do a command every frame
-							//which we believe to be the cause of the "stuck bug".charAt(hence does nothing)
+							//which we believe to be the cause of the "stuck bug"(hence does nothing)
 							zergling.attack(attackTarget);
+							// Keegan Check if this sticks early "route sucks"
+							System.out.println("attack order");
 						}
 					}
 				}
 			}
+			lastFrameAttackTarget = attackTarget;
 		}
 
 	
@@ -576,6 +587,10 @@ public class ZergRushCompetition extends DefaultBWListener {
 				basePoss.add(base.getPosition());
 				size++;
 			}
+			else
+			{
+				homeBase=base.getPosition();
+			}
     	}
 	    System.out.println("basePosSize: "+ basePoss.size());
 	    System.out.println("basePoses: "+ basePoss);
@@ -716,4 +731,15 @@ public class ZergRushCompetition extends DefaultBWListener {
 				System.out.println("Sent the builder?");
 			}
 		}
+	 
+	 public int getUnchecked()
+	 {
+		 int counter = 0;
+		 for(Boolean bool : baseChecked)
+		 {
+			 if(!bool)
+				 counter++;
+		 }
+		 return counter;
+	 }
 }
