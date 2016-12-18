@@ -7,6 +7,7 @@ import java.util.List;
 import bwapi.*;
 import bwta.BWTA;
 import bwta.BaseLocation;
+import bwta.Chokepoint;
 
 public class ZergRushCompetition extends DefaultBWListener {
 
@@ -112,7 +113,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		
 
 		// sets speed to be way faster
-		//game.setLocalSpeed(4);
+		game.setLocalSpeed(4);
 
 		// Use BWTA to analyze map
 		// This may take a few minutes if the map is processed first time!
@@ -143,7 +144,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		long startTime = System.nanoTime();
 		// print framerate and other info
 //		game.drawTextScreen(0, 0,  "FPS: " + game.getFPS() );
-//	    game.drawTextScreen(0, 20, "Avg FPS: " + game.getAverageFPS() );
+//	    game.drawTextScreen(0, 20, "Avg FPS: " + game.getAverageFPS()  ); 
 //	    game.drawTextScreen(0, 40, "dronecount: "+ drones.size());
 //	    game.drawTextScreen(0, 60, "supply used: "+ self.supplyUsed());
 //	    game.drawTextScreen(0, 80, "larvaeCount: "+ larvae.size());
@@ -152,7 +153,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 //	    game.drawTextScreen(0, 130, "enemyBase: "+ enemyBase);
 	   
 	    
-		// update game information
+		//update game information 
 		updateEnemyLocations();
 
 		// give orders to units based on strat
