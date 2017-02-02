@@ -1,4 +1,4 @@
-package Wills_One_Class;
+package Competition_Bot;
 
 import java.util.ArrayList;
 import java.util.HashSet;
