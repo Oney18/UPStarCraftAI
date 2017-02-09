@@ -1,175 +1,78 @@
 package Jarretts_Prototype;
 
-import java.util.*;
-import bwapi.*;
-import bwta.BWTA;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * This class tracks and manages all of the worker units 
- * the agent owns.
- * 
- * @author Kenny Trowbridge
- * 
- * Ported to handle Zerg
- * 
- * @author Jarrett Oney
- *
- */
-public class WorkerManager{
+import bwapi.Game;
+import bwapi.Player;
+import bwapi.Position;
+import bwapi.Unit;
+import bwapi.UnitType;
+
+
+public class WorkerManager {
 	
-	private Player self = null;
-	private List<Unit> neutralUnits = new ArrayList<Unit>();
-	private static List<Unit> workerList = new ArrayList<Unit>(10);
-	private List<Unit> larvae = new ArrayList<Unit>(10);
+	private List<Unit> workers;
+	private Player self;
+	private Game game;
 	
-	/**
-	 * constructor
-	 * @param self  Player object for bot
-	 * @param neutralUnits  List of neutral units in the game (Only used to task workers to gather)
-	 */
-	public WorkerManager(Player self, List<Unit> neutralUnits)
-	{
+	public WorkerManager(Player self, Game game){
 		this.self = self;
-		this.neutralUnits = neutralUnits;
+		this.game = game;
+		workers = new ArrayList<Unit>();
 	}
 	
-	/**
-	 * update()
-	 * This method maintains the list of worker units by pruning
-	 * units that no longer exist. Also assigns idle units tasks
-	 */
-	public void update()
-	{ 
-		List<Unit> workersToRemove = new ArrayList<Unit>();
-		List<Unit> larvaeToRemove = new ArrayList<Unit>();
-		
-		for(Unit worker : workerList)
-		{			
-			if(worker.isIdle() && worker.isCompleted())
+	public void addWorker(Unit worker){
+		workers.add(worker);
+	}
+	
+	public Unit getWorker(){
+		for(Unit worker : workers)
+		{
+			if(!worker.isMorphing() && worker.isInterruptible() && worker.isCompleted() && 
+					!worker.isCarryingMinerals() && !worker.isCarryingGas())
 			{
-				//assign a task
-				// protect against not finding any closest minerals. 
-				// -- ie. don't pass null to u.gather(); that is a bad thing. 
-				Unit closestMineral = findClosestMineral(BWTA.getStartLocation(self).getPosition());
+				workers.remove(worker);
+				return worker;
+			}
+		}
+		return null;
+	}
+	
+	public List<Unit> getWorkerList(){
+		return workers;
+	}
+	
+//	public void removeWorker(Unit worker){
+//		workers.remove(worker);
+//	}
+	
+	public int getNumWorkers(){
+		//System.out.println(workers.size());
+		return workers.size();
+	}
+	
+	public void manage(){
+		
+		for(Unit drone : workers)
+		{			
+			if(drone.isIdle() && drone.isCompleted())
+			{
+				Unit closestMineral = findClosestMineral(drone.getPosition());
 				if(closestMineral != null)
 				{
-					worker.gather(closestMineral);
+					drone.gather(closestMineral);
 				}
 			}
-			
+
 			//save dead units for deletion	
-			if(!worker.exists())
+			if(!drone.exists())
 			{
-				workersToRemove.add(worker);
+				workers.remove(drone);
 			}
-		}
-		
-		for(Unit larva : larvae)
-		{
-			if(!larva.exists() 
-					|| larva.getType() != UnitType.Zerg_Larva)
-			{
-				larvaeToRemove.add(larva);
-			}
-		}
-		
-		//remove dead workers
-		for(Unit u : workersToRemove)
-		{
-			workerList.remove(u);
-		}
-		
-		for(Unit u : larvaeToRemove)
-		{
-			larvae.remove(u);
-		}
-		
-		//System.out.println("There are "+larvae.size()+" larva in the list");
-	}
-
-	/**
-	 * getWorker()
-	 * Finds an available worker unit
-	 * 
-	 * @return - a worker unit
-	 */
-	public Unit getWorker()
-	{
-		Unit availableWorker = null;
-		for(Unit worker : workerList)
-		{			
-//			//make sure no drones are going to morph at the same time
-//			if(worker.getOrder().equals(Order.ZergBuildingMorph))
-//			{
-//				return null;
-//			}		
-			
-			//find a free worker
-			if(!worker.isMorphing() && worker.isInterruptible() 
-					&& worker.isCompleted() && !worker.isCarryingMinerals())
-			{
-				availableWorker = worker;
-			}
-		}
-		workerList.remove(availableWorker);
-		return availableWorker;
+		}	
 	}
 	
-	/**
-	 * getLarva()
-	 * 
-	 * @return a larva
-	 */
-	public Unit getLarva()
-	{
-		if(!larvae.isEmpty()){
-			Unit larva = larvae.get(0);
-			//larvae.remove(larva);
-			return larva;
-		}
-		return null; //no larva available
-	}
-	
-	/**
-	 * getDroneCount()
-	 * 
-	 * @return the number of drones controlled by the player
-	 */
-	public static int getDroneCount()
-	{
-		return workerList.size();
-	}
-	
-	/**
-	 * getLarvaCount()
-	 * 
-	 * @return the number of larva controlled by the player
-	 */
-	public int getLarvaCount(){
-		return larvae.size();
-	}
-	
-	/**
-	 * addUnit
-	 * Adds a unit to the workerList or larvae 
-	 * 
-	 * @param unit - unit to be added
-	 */
-	public void addUnit(Unit unit)
-	{ 
-		//add only worker units
-		if (unit != null && unit.getType() == UnitType.Zerg_Drone)
-		{
-			System.out.println("re-added the worker");
-			workerList.add(unit);
-		}
-		else if(unit != null && unit.getType() == UnitType.Zerg_Larva)
-		{
-			larvae.add(unit);
-		}
-	}
-	
-
 	/**
 	 * findClosestMineral()
 	 * Finds the closest mineral to the given position
@@ -186,7 +89,7 @@ public class WorkerManager{
 		Unit closest = null;
 		
 		//find closest mineral
-		for(Unit neutral : neutralUnits)
+		for(Unit neutral : game.getNeutralUnits())
 		{
 			//only check mineral fields
 			if(neutral.getType() == UnitType.Resource_Mineral_Field)
@@ -202,4 +105,3 @@ public class WorkerManager{
 	}
 	
 }
-
