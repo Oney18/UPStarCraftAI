@@ -50,6 +50,7 @@ public class Base {
 			
 			int minerals = self.minerals();
 			List<Unit> larvae = hatchery.getLarva();
+			//System.out.println("Larva Size: " + larvae.size());
 			
 			//build workers to get to 4?
 			if(!larvae.isEmpty() && workerManager.getNumWorkers() + workersExpected < 3)

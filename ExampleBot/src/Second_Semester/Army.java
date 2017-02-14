@@ -10,10 +10,10 @@ import bwapi.Unit;
 
 public class Army {
 
-	private ArrayList<Troop> army = new ArrayList<Troop>();
+	private ArrayList<Troop> army;
 	
 	public Army(Player self, Game game){
-		
+		army = new ArrayList();
 	}
 	
 	public void move(Position p)

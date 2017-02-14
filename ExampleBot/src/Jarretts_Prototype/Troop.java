@@ -20,20 +20,22 @@ public class Troop {
 	public void manage()
 	{
 
-		if(units.size() > 0)
+		if(units.size() > 0){
+			ArrayList<Unit> unitsToRemove = new ArrayList<Unit>();
 			for(Unit zergling : units)
 			{
 				//System.out.println("Zergling is managing");
 				//save dead units for deletion	
 				if(!zergling.exists())
 				{
-					units.remove(zergling);
+					unitsToRemove.add(zergling);
+					//units.remove(zergling);
 				}
 				else if(attackTarget instanceof Position)
 				{
 					zergling.move((Position) attackTarget);
 				}
-				else if(lastFrameTarget != attackTarget)
+				else if(lastFrameTarget != attackTarget || zergling.isIdle())
 				{
 					//this will still tell all 'stuck" zergs to do a command every frame
 					//which we believe to be the cause of the "stuck bug"(hence does nothing)
@@ -44,6 +46,11 @@ public class Troop {
 					}
 				}
 			}
+			for(Unit zergling : unitsToRemove)
+			{
+				units.remove(zergling);
+			}
+		}
 	}
 	
 	public void addUnit(Unit u)

@@ -2,15 +2,18 @@ package Second_Semester;
 
 import java.util.ArrayList;
 
+import bwapi.Game;
+import bwapi.Player;
 import bwapi.Position;
 import bwapi.Unit;
+import bwta.BWTA;
 
 
 public class WorkerManager {
 	
 	private ArrayList<Unit> workers = new ArrayList<Unit>();
 	
-	public WorkerManager(){
+	public WorkerManager(Player self, Game game){
 		
 	}
 	
@@ -35,15 +38,36 @@ public class WorkerManager {
 		return workers;
 	}
 	
-	public void removeWorker(Unit worker){
-		workers.remove(worker);
-	}
+//	public void removeWorker(Unit worker){
+//		workers.remove(worker);
+//	}
 	
 	public int getNumWorkers(){
 		return workers.size();
 	}
 	
 	public void manage(){
+		for(Unit drone : workers)
+		{			
+			if(drone.isIdle() && drone.isCompleted())
+			{
+				Unit closestMineral = findClosestMineral(BWTA.getStartLocation(self).getPosition());
+				if(closestMineral != null)
+				{
+					drone.gather(closestMineral);
+				}
+			}
+
+			//save dead units for deletion	
+			if(!drone.exists())
+			{
+				workers.remove(drone);
+			}
+		}
+		
+		
+		//move a drone
+		
 		
 	}
 	

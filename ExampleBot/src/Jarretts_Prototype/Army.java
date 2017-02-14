@@ -19,6 +19,7 @@ public class Army {
 	private Player self;
 	private Game game;
 	private Unit scout;
+	private Unit endGameScout;
 	private Position enemyBase;
 	private List<Unit> enemyBlds;
 	private List<Unit> enemyWorkers;
@@ -109,6 +110,7 @@ public class Army {
 						{
 							killedBase = true;
 							startChecked[startPoss.indexOf(enemyBase)] = true;
+							endGameScout = scout;
 							
 						}
 						else
@@ -126,6 +128,7 @@ public class Army {
 					{
 						//System.out.println("i can not see" + lasti + "," + lastj);
 						target = new TilePosition(lasti,lastj).toPosition();
+						endGameScout.move((Position) target);
 						//System.out.println("moving to " + new TilePosition(lasti,lastj));
 					}
 					else
@@ -142,7 +145,7 @@ public class Army {
 
 				}
 
-				System.out.println(target);
+				//System.out.println(target);
 				t.setAttackTarget(target);
 				t.manage();
 			}

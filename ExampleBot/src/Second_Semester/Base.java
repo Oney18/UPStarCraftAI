@@ -12,7 +12,7 @@ public class Base {
 	private ArrayList<Unit> buildings = new ArrayList<Unit>();
 	private WorkerManager workerManager;
 	private Troop troop;
-	private Unit extractor;
+	private Unit extractor; //equilivant to "does this base have an extractor"
 	
 	
 		public Base(){

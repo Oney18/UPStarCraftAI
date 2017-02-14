@@ -112,7 +112,7 @@ public class ZergRushCompetition extends DefaultBWListener {
 		
 
 		// sets speed to be way faster
-		//game.setLocalSpeed(4);
+		game.setLocalSpeed(4);
 
 		// Use BWTA to analyze map
 		// This may take a few minutes if the map is processed first time!
@@ -596,6 +596,8 @@ public class ZergRushCompetition extends DefaultBWListener {
 		{
 			cheesed = true;
 		}
+		if(unit.getType() == UnitType.Zerg_Hatchery)
+			System.out.println("IOTWORKS");
 	}
 	
 	
