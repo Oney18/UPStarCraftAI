@@ -1,6 +1,7 @@
 package Jarretts_Prototype;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 import bwapi.Game;
@@ -18,40 +19,54 @@ public class Army {
 	private List<Troop> army;
 	private Player self;
 	private Game game;
+//	private UPStarcraft controller;
 	private Unit scout;
 	private Unit endGameScout;
+	private Unit endGameWorker;
 	private Position enemyBase;
 	private List<Unit> enemyBlds;
 	private List<Unit> enemyWorkers;
 	private List<Unit> enemyCores;
 	private List<Unit> enemyProblems;
 	private boolean killedBase;
+	
+	private List<Unit> trolls;
+	private Hashtable<Troop, Unit> lastTargets;
+	private Hashtable<Troop, Integer> frameCounts;
 
 	List<Position> startPoss;
 	boolean[] startChecked;
 	List<Position> basePoss;
 	boolean[] baseChecked;
 
-	Position nextBasePosition;
+	//Position nextBasePosition;
 	private Position homeBase;
 	private int lasti;
 	private int lastj;
+	private boolean forwardMarch;
 
 	public Army(Player self, Game game){
 		army = new ArrayList<Troop>();
 		this.self = self;
 		this.game = game;
+		
 		enemyBlds = new ArrayList<Unit>();
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
 		enemyProblems = new ArrayList<Unit>();
 		startPoss = new ArrayList<Position>();
 		basePoss = new ArrayList<Position>();
+		trolls = new ArrayList<Unit>();
+		lastTargets = new Hashtable<Troop, Unit>();
+		frameCounts = new Hashtable<Troop, Integer>();
+		
+		
 		enemyBase = null;
 		killedBase = false;
 		FillStartPositions();
 		lasti = 1;
 		lastj = 1;
+		forwardMarch = true;
 
 	}
 
@@ -59,27 +74,25 @@ public class Army {
 	{
 		scoutOverlord();
 		getSeenEnemies();
-		for(Troop t : army)
+		for(int q = 0; q < army.size(); q++)
 		{
+			Troop t = army.get(q);
 			if(t.units.size() > 0)
 			{
 				Object target = null;
+				
 				if(!enemyProblems.isEmpty()) //target closest threat
-				{
 					target = findClosest(enemyProblems, t.units.get(0));
-				}
-				else if(!enemyWorkers.isEmpty())//else target closest worker, 
-				{
-					target = findClosest(enemyWorkers, t.units.get(0));			
-				}
-				else if(!enemyCores.isEmpty())//else target core,
-				{
-					target = findClosest(enemyCores, t.units.get(0));		
-				}
-				else if(!enemyBlds.isEmpty())//else target buildings.
-				{
+				
+				else if(!enemyWorkers.isEmpty()) //else target closest worker, 
+					target = findClosest(enemyWorkers, t.units.get(0));
+
+				else if(!enemyCores.isEmpty()) //else target core,
+					target = findClosest(enemyCores, t.units.get(0));	
+				
+				else if(!enemyBlds.isEmpty()) //else target buildings.
 					target = findClosest(enemyBlds, t.units.get(0));		
-				}
+				
 				else if(target == null && !killedBase)
 				{
 					Position zergSpot = t.units.get(0).getPosition();
@@ -123,30 +136,85 @@ public class Army {
 				else if(killedBase)
 				{
 
+//					if(endGameWorker == null)
+//						endGameWorker = controller.getWorkerScout();
+//					
+//					if(endGameWorker != null && !endGameWorker.exists())
+//						endGameWorker = controller.getWorkerScout();
 
 					if(!game.isVisible(lasti, lastj))
 					{
 						//System.out.println("i can not see" + lasti + "," + lastj);
 						target = new TilePosition(lasti,lastj).toPosition();
-						endGameScout.move((Position) target);
+						scout.move(new TilePosition(lasti,lastj).toPosition());
+						//endGameScout.move(new TilePosition(lasti,lastj).toPosition());
+						
+//						if(endGameWorker != null && endGameWorker.exists())
+//							endGameWorker.move(new TilePosition(lasti,lastj).toPosition());
 						//System.out.println("moving to " + new TilePosition(lasti,lastj));
 					}
 					else
 					{
-						//System.out.println("i saw "+ lasti + "," + lastj);
-						lasti = lasti +1;
+						System.out.println("i saw "+ lasti + "," + lastj);
+						
+						if(forwardMarch){
+							lasti = lasti + 1;
+							if(lasti >= game.mapWidth())
+							{
+								lasti = game.mapWidth()-1;
+								lastj = lastj+10;
+								forwardMarch = !forwardMarch;
+							}
+						}
+						else{
+							lasti = lasti - 1;
+							if(lasti < 1){
+								lasti = 1;
+								lastj = lastj+10;
+								forwardMarch = !forwardMarch;
+							}
+							
+						}
+						
 						if(lasti >= game.mapWidth())
 						{
 							lasti = 1;
 							lastj = lastj+20;
 						}
-						//System.out.println("so im now off to "+ lasti + "," + lastj);
+						
+						scout.move(new TilePosition(lasti,lastj).toPosition());
+						
+						System.out.println("so im now off to "+ lasti + "," + lastj);
 					}
 
 				}
 
 				//System.out.println(target);
 				t.setAttackTarget(target);
+				if(target instanceof Unit)
+				{
+					Unit unit = (Unit) target;
+					if(lastTargets.get(t) == null)
+						lastTargets.put(t, unit);
+					else if(lastTargets.get(t) == unit)
+						if(unit.isAttacking())
+							frameCounts.replace(t,  0);
+						else
+							{
+							frameCounts.replace(t, frameCounts.get(t) + 1);
+							System.out.println("Frame count is at " + frameCounts.get(t));
+							}
+					else //not equal
+					{
+						lastTargets.replace(t, unit);
+						frameCounts.replace(t,  0);
+					}
+					
+					if(!unit.getType().isBuilding()) //is mobile
+						if(frameCounts.get(t) > 250)
+							trolls.add(unit);
+				}
+				
 				t.manage();
 			}
 		}
@@ -168,11 +236,17 @@ public class Army {
 			{
 				if(unit.getType().isWorker())
 				{
+					//kite fix?? NAWP
+					//if(unit.isGatheringMinerals() || unit.isGatheringGas() || unit.isAttacking() || unit.isStartingAttack() || unit.isConstructing())
 					enemyWorkers.add(unit);
 				}
-				else if(unit.getType().canAttack())
+				else if(unit.getType().canAttack() 	|| unit.getType() == UnitType.Terran_Bunker
+													|| unit.getType() == UnitType.Zerg_Sunken_Colony
+													|| unit.getType() == UnitType.Protoss_Photon_Cannon)
 				{
+					//if(unit.isAttacking() || unit.isStartingAttack() || unit.isAttackFrame())
 					enemyProblems.add(unit);
+					
 				}
 				else if(unit.getType().isBuilding())
 				{
@@ -191,6 +265,21 @@ public class Army {
 
 			}
 		}
+		
+		List<Unit> trollsToRemove = new ArrayList<Unit>();
+		//test kiters to see if still kiting
+		for(Unit troll : trolls)
+		{
+			if(troll.isVisible())
+				if(troll.isAttacking() || troll.isGatheringGas() || troll.isGatheringMinerals())
+					trollsToRemove.add(troll);
+					
+		}
+		trolls.removeAll(trollsToRemove);
+		
+		//remove kiters
+		enemyProblems.removeAll(trolls);
+		enemyWorkers.removeAll(trolls);
 	}
 
 	private void scoutOverlord()
@@ -212,7 +301,7 @@ public class Army {
 					break;
 				}
 		}
-		else
+		else if(scout != null)
 			scout.move(homeBase);
 	}
 
@@ -244,7 +333,7 @@ public class Army {
 		int size = 0;
 		for(BaseLocation base : baseLocations)
 		{			
-			// if start location is not start location and a starting location add it
+			// if base location is not start location and a starting location add it
 			if (!base.getPosition().equals(BWTA.getStartLocation(self).getPosition()) && !startPoss.contains(base))
 			{
 				basePoss.add(base.getPosition());
@@ -298,6 +387,8 @@ public class Army {
 	public void addTroop(Troop troop)
 	{
 		army.add(troop);
+		//lastTargets.put(troop, null);
+		frameCounts.put(troop, 0);
 	}
 
 	public void setScout(Unit scout)

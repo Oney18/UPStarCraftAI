@@ -54,6 +54,7 @@ public class WorkerManager {
 	
 	public void manage(){
 		
+		List<Unit> workersToRemove = new ArrayList<Unit>();
 		for(Unit drone : workers)
 		{			
 			if(drone.isIdle() && drone.isCompleted())
@@ -68,9 +69,13 @@ public class WorkerManager {
 			//save dead units for deletion	
 			if(!drone.exists())
 			{
-				workers.remove(drone);
+				workersToRemove.add(drone);
 			}
-		}	
+		}
+		for(Unit worker : workersToRemove)
+		{
+			workers.remove(worker);
+		}
 	}
 	
 	/**

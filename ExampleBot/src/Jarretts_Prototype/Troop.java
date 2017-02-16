@@ -56,7 +56,6 @@ public class Troop {
 	public void addUnit(Unit u)
 	{
 		units.add(u);
-		System.out.println("This troop has "+units.size());
 	}
 	
 	public void move(Position p)
