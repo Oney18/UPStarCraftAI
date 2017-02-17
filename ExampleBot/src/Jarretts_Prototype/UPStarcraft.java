@@ -3,6 +3,7 @@ package Jarretts_Prototype;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import bwapi.*;
 import bwta.BWTA;
@@ -21,6 +22,18 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<Unit> basesMade; //used for sorting
 	private Army army;
 	private boolean init;
+	
+	public boolean rushing;
+	private boolean zergDeath;
+	private int frameCount;
+	private int enemiesSeen;
+	private int enemiesKilled;
+	private List<Unit> enemiesWitnessed;
+	
+	//Static frame limit for how long we rush, most useful for 4-base maps
+	//Dummied right now
+	private final int RUSH_FRAME_COUNT = Integer.MAX_VALUE;
+	private final double RUSH_FAIL_HEURISTIC = 0.5;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -33,18 +46,19 @@ public class UPStarcraft extends DefaultBWListener{
 
 	@Override
 	public void onStart() {
-		if(UnitType.Terran_Bunker.canAttack())
-			System.out.println("Bunker can attack");
-		else
-			System.out.println("Bunker cannot attack");
-
 		init = true;
+		rushing = true;
+		frameCount = 0;
+		enemiesSeen = 0;
+		enemiesKilled = 0;
+		zergDeath = false;
+		enemiesWitnessed = new ArrayList<Unit>();
 		game = mirror.getGame();
 		self = game.self();
 		BWTA.readMap();
 		BWTA.analyze();
 
-		game.setLocalSpeed(4);
+		game.setLocalSpeed(0);
 
 		army = new Army(self, game);
 		//System.out.println("DOES THIS WORK");
@@ -87,13 +101,18 @@ public class UPStarcraft extends DefaultBWListener{
 			army.manage();
 			for(Base base: baseList)
 				base.manage();
+		
+
+		if(init) init = false; //should mean no duplicates in first frame are done
+		if(rushing)
+			rushing = calculateRush();
+		frameCount++;
+		
 		}
 		catch(Exception e)
 		{
 			e.printStackTrace();
 		}
-
-		init = false; //should mean no duplicates in first frame are done
 	}
 
 	@Override
@@ -164,8 +183,25 @@ public class UPStarcraft extends DefaultBWListener{
 	}
 	@Override
 	public void onUnitDestroy(Unit unit){
-
+		if(unit.getPlayer() == game.enemy())
+			enemiesKilled++;
+		else if(!zergDeath && unit.getType() == UnitType.Zerg_Zergling && unit.getPlayer() == self)
+			zergDeath = true;
 	}
+	
+	
+	private int games = 0;
+	private int wins = 0;
+	@Override
+    public void onEnd(boolean isWinner)
+    {
+		games++;
+    	if(isWinner) wins++;
+    	System.out.println("Game ended: " + wins + "/" + games);
+    }
+	
+	
+	
 
 	public void newTroop(Troop troop)
 	{
@@ -185,6 +221,37 @@ public class UPStarcraft extends DefaultBWListener{
 			}
 		}
 		return returnUnit;
+	}
+
+	private boolean calculateRush()
+	{
+		List<Unit> enemies = game.enemy().getUnits();
+
+		//System.out.println("Num enemies visible is " + game.enemy().visibleUnitCount() + " and our seen counter is " + enemiesSeen+ " and we killed " + enemiesKilled);
+		
+		if(!enemies.isEmpty() && game.enemy().visibleUnitCount() != 0)
+		{
+			for(Unit enemy : enemies)
+				if(!enemiesWitnessed.contains(enemy))
+				{
+					enemiesWitnessed.add(enemy);
+					enemiesSeen++;
+				}
+			return true;
+		}
+		else if(enemiesSeen != 0 && zergDeath)//enemies is empty cause we see none; initial push failed
+		{
+			double killRatio = ((double) enemiesKilled) / ((double) enemiesSeen);
+			
+			if(killRatio < RUSH_FAIL_HEURISTIC)
+			{
+				System.out.println("THE RUSH HAS FAILED");
+				System.out.println("The ratio is " + killRatio);
+				return false;
+			}
+		}
+		
+		return true; //haven't seen enemies yet
 	}
 }
 

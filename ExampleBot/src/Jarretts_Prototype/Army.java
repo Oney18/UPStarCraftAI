@@ -28,6 +28,7 @@ public class Army {
 	private List<Unit> enemyWorkers;
 	private List<Unit> enemyCores;
 	private List<Unit> enemyProblems;
+	private List<Unit> blockers;
 	private boolean killedBase;
 	
 	private List<Unit> trolls;
@@ -54,6 +55,8 @@ public class Army {
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
 		enemyProblems = new ArrayList<Unit>();
+		blockers = new ArrayList<Unit>();
+		
 		startPoss = new ArrayList<Position>();
 		basePoss = new ArrayList<Position>();
 		trolls = new ArrayList<Unit>();
@@ -91,7 +94,10 @@ public class Army {
 					target = findClosest(enemyCores, t.units.get(0));	
 				
 				else if(!enemyBlds.isEmpty()) //else target buildings.
-					target = findClosest(enemyBlds, t.units.get(0));		
+					target = findClosest(enemyBlds, t.units.get(0));	
+				
+				else if(!blockers.isEmpty())
+					target = findClosest(blockers, t.units.get(0));
 				
 				else if(target == null && !killedBase)
 				{
@@ -155,7 +161,7 @@ public class Army {
 					}
 					else
 					{
-						System.out.println("i saw "+ lasti + "," + lastj);
+						//System.out.println("i saw "+ lasti + "," + lastj);
 						
 						if(forwardMarch){
 							lasti = lasti + 1;
@@ -184,7 +190,7 @@ public class Army {
 						
 						scout.move(new TilePosition(lasti,lastj).toPosition());
 						
-						System.out.println("so im now off to "+ lasti + "," + lastj);
+						//System.out.println("so im now off to "+ lasti + "," + lastj);
 					}
 
 				}
@@ -200,10 +206,8 @@ public class Army {
 						if(unit.isAttacking())
 							frameCounts.replace(t,  0);
 						else
-							{
 							frameCounts.replace(t, frameCounts.get(t) + 1);
-							System.out.println("Frame count is at " + frameCounts.get(t));
-							}
+
 					else //not equal
 					{
 						lastTargets.replace(t, unit);
@@ -226,6 +230,7 @@ public class Army {
 		enemyWorkers.clear();
 		enemyCores.clear();
 		enemyBlds.clear();
+		blockers.clear();
 	}
 
 	private void getSeenEnemies()
@@ -255,7 +260,8 @@ public class Army {
 							|| unit.getType() == UnitType.Protoss_Nexus)
 					{
 						enemyCores.add(unit);
-						if(enemyBase == null)
+						
+						if(enemyBase == null && startPoss.contains(unit.getPosition()))
 							enemyBase = unit.getPosition();
 					}
 					else
@@ -265,6 +271,10 @@ public class Army {
 
 			}
 		}
+		
+		for(Unit garbage : game.neutral().getUnits())
+			if(garbage.getType() == UnitType.Special_Psi_Disrupter)
+				blockers.add(garbage);
 		
 		List<Unit> trollsToRemove = new ArrayList<Unit>();
 		//test kiters to see if still kiting
@@ -394,6 +404,14 @@ public class Army {
 	public void setScout(Unit scout)
 	{
 		this.scout = scout;
+	}
+	
+	public int size()
+	{
+		int size = 0;
+		for(Troop t : army)
+			size += t.units.size();
+		return size;
 	}
 
 }

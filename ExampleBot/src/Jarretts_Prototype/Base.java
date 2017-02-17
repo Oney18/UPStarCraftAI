@@ -32,6 +32,8 @@ public class Base {
 	private boolean doExtractor;
 	private boolean gasMorphing2;
 	private boolean gasMorphingStarted;
+	
+
 
 
 	public Base(UPStarcraft controller, Player self, Game game, Unit hatchery, boolean doExtractor){
@@ -76,7 +78,7 @@ public class Base {
 		//build workers to get to 4?
 		if(!larvae.isEmpty() && workerManager.getNumWorkers() + workersExpected < 4)
 		{
-			System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
+			//System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
 			Unit larva = larvae.get(0);
 			larva.morph(UnitType.Zerg_Drone);
 			larvae.remove(larva);
@@ -153,7 +155,7 @@ public class Base {
 				{
 					//maybe still moving, let it keep moving to the spot we found works
 					poolMorpherDrone.move(basePos);
-					System.out.println("move home");
+					//System.out.println("move home");
 					//if you command it to move, it gets mad and won't obey. too many commands
 				}
 			}						
