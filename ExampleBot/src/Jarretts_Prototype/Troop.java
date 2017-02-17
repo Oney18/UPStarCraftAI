@@ -29,7 +29,6 @@ public class Troop {
 				if(!zergling.exists())
 				{
 					unitsToRemove.add(zergling);
-					//units.remove(zergling);
 				}
 				else if(attackTarget instanceof Position)
 				{

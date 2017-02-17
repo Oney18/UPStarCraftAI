@@ -25,6 +25,7 @@ public class UPStarcraft extends DefaultBWListener{
 	
 	public boolean rushing;
 	private boolean zergDeath;
+	private int zergsKilled;
 	private int frameCount;
 	private int enemiesSeen;
 	private int enemiesKilled;
@@ -48,6 +49,7 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onStart() {
 		init = true;
 		rushing = true;
+		zergsKilled = 0;
 		frameCount = 0;
 		enemiesSeen = 0;
 		enemiesKilled = 0;
@@ -58,11 +60,12 @@ public class UPStarcraft extends DefaultBWListener{
 		BWTA.readMap();
 		BWTA.analyze();
 
-		game.setLocalSpeed(0);
+		game.setLocalSpeed(4);
 
 		army = new Army(self, game);
 		//System.out.println("DOES THIS WORK");
 
+		System.out.println("Map name is " + game.mapFileName());
 		baseList = new ArrayList<Base>();
 		basesMade = new ArrayList<Unit>();
 		List<Unit> myUnits = self.getUnits();
@@ -85,7 +88,7 @@ public class UPStarcraft extends DefaultBWListener{
 			if(u.getType() == UnitType.Zerg_Drone)
 				initBase.addUnit(u);
 			else if(u.getType() == UnitType.Zerg_Overlord)
-				army.setScout(u);
+				army.addScout(u);
 
 		baseList.add(initBase);
 		//System.out.println("Added Base to LIst");
@@ -135,7 +138,7 @@ public class UPStarcraft extends DefaultBWListener{
 		} 
 		else if(unit.getType() == UnitType.Zerg_Overlord)
 		{
-			army.setScout(unit);
+			army.addScout(unit);
 		}
 	}
 
@@ -159,7 +162,7 @@ public class UPStarcraft extends DefaultBWListener{
 		} 
 		else if(unit.getType() == UnitType.Zerg_Overlord)
 		{
-			army.setScout(unit);
+			army.addScout(unit);
 		}
 	}
 
@@ -186,7 +189,11 @@ public class UPStarcraft extends DefaultBWListener{
 		if(unit.getPlayer() == game.enemy())
 			enemiesKilled++;
 		else if(!zergDeath && unit.getType() == UnitType.Zerg_Zergling && unit.getPlayer() == self)
-			zergDeath = true;
+		{
+			zergsKilled++;
+			if(zergsKilled > 5)
+				zergDeath = true;
+		}
 	}
 	
 	
@@ -197,6 +204,7 @@ public class UPStarcraft extends DefaultBWListener{
     {
 		games++;
     	if(isWinner) wins++;
+    	else System.out.println("We lost this one.");
     	System.out.println("Game ended: " + wins + "/" + games);
     }
 	

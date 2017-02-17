@@ -20,15 +20,12 @@ public class Army {
 	private Player self;
 	private Game game;
 //	private UPStarcraft controller;
-	private Unit scout;
-	private Unit endGameScout;
-	private Unit endGameWorker;
+	private List<Unit> scouts;
 	private Position enemyBase;
 	private List<Unit> enemyBlds;
 	private List<Unit> enemyWorkers;
 	private List<Unit> enemyCores;
 	private List<Unit> enemyProblems;
-	private List<Unit> blockers;
 	private boolean killedBase;
 	
 	private List<Unit> trolls;
@@ -39,6 +36,7 @@ public class Army {
 	boolean[] startChecked;
 	List<Position> basePoss;
 	boolean[] baseChecked;
+	Position nextBasePosition;
 
 	//Position nextBasePosition;
 	private Position homeBase;
@@ -55,7 +53,7 @@ public class Army {
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
 		enemyProblems = new ArrayList<Unit>();
-		blockers = new ArrayList<Unit>();
+		scouts = new ArrayList<Unit>();
 		
 		startPoss = new ArrayList<Position>();
 		basePoss = new ArrayList<Position>();
@@ -66,7 +64,9 @@ public class Army {
 		
 		enemyBase = null;
 		killedBase = false;
+		nextBasePosition = null;
 		FillStartPositions();
+		FillBasePositions();
 		lasti = 1;
 		lastj = 1;
 		forwardMarch = true;
@@ -96,8 +96,6 @@ public class Army {
 				else if(!enemyBlds.isEmpty()) //else target buildings.
 					target = findClosest(enemyBlds, t.units.get(0));	
 				
-				else if(!blockers.isEmpty())
-					target = findClosest(blockers, t.units.get(0));
 				
 				else if(target == null && !killedBase)
 				{
@@ -125,11 +123,11 @@ public class Army {
 
 					else
 					{
+						
 						if(game.isVisible(enemyBase.toTilePosition()))
 						{
 							killedBase = true;
 							startChecked[startPoss.indexOf(enemyBase)] = true;
-							endGameScout = scout;
 							
 						}
 						else
@@ -142,18 +140,41 @@ public class Army {
 				else if(killedBase)
 				{
 
-//					if(endGameWorker == null)
-//						endGameWorker = controller.getWorkerScout();
-//					
-//					if(endGameWorker != null && !endGameWorker.exists())
-//						endGameWorker = controller.getWorkerScout();
+					//Base Scouting
+					if (nextBasePosition == null)
+					{
+						if(basePoss.size() != 0)
+						{
+							for(Position base : basePoss)
+							{
+								if(nextBasePosition==null || base.getDistance(t.units.get(0).getPosition()) < nextBasePosition.getDistance(t.units.get(0).getPosition()))
+								{
+									nextBasePosition = base;
+									System.out.println("Assigned next base target");
+									
 
+								}
+							}
+							target = nextBasePosition;
+						}
+					}
+					else if (game.isVisible(nextBasePosition.toTilePosition()) && target == null)
+					{
+						basePoss.remove(nextBasePosition);
+						nextBasePosition = null;
+					}
+					
+					
+					//Grid Scouting
 					if(!game.isVisible(lasti, lastj))
 					{
 						//System.out.println("i can not see" + lasti + "," + lastj);
-						target = new TilePosition(lasti,lastj).toPosition();
-						scout.move(new TilePosition(lasti,lastj).toPosition());
+						for(Unit scout : scouts)
+							scout.move(new TilePosition(lasti,lastj).toPosition());
 						//endGameScout.move(new TilePosition(lasti,lastj).toPosition());
+						
+						if(basePoss.size() == 0)
+							target = new TilePosition(lasti,lastj).toPosition();
 						
 //						if(endGameWorker != null && endGameWorker.exists())
 //							endGameWorker.move(new TilePosition(lasti,lastj).toPosition());
@@ -188,7 +209,8 @@ public class Army {
 							lastj = lastj+20;
 						}
 						
-						scout.move(new TilePosition(lasti,lastj).toPosition());
+						for(Unit scout : scouts)
+							scout.move(new TilePosition(lasti,lastj).toPosition());
 						
 						//System.out.println("so im now off to "+ lasti + "," + lastj);
 					}
@@ -230,7 +252,6 @@ public class Army {
 		enemyWorkers.clear();
 		enemyCores.clear();
 		enemyBlds.clear();
-		blockers.clear();
 	}
 
 	private void getSeenEnemies()
@@ -272,10 +293,6 @@ public class Army {
 			}
 		}
 		
-		for(Unit garbage : game.neutral().getUnits())
-			if(garbage.getType() == UnitType.Special_Psi_Disrupter)
-				blockers.add(garbage);
-		
 		List<Unit> trollsToRemove = new ArrayList<Unit>();
 		//test kiters to see if still kiting
 		for(Unit troll : trolls)
@@ -294,7 +311,17 @@ public class Army {
 
 	private void scoutOverlord()
 	{
-		if(enemyBase == null && scout != null && scout.exists())
+		//rid ourselves of dead scouts
+		List<Unit> deadScouts = new ArrayList<Unit>();
+		for(Unit scout : scouts)
+			if(!scout.exists())
+				deadScouts.add(scout);
+		
+		scouts.removeAll(deadScouts);
+				
+		
+		
+		if(enemyBase == null && scouts.size() > 0)
 		{
 
 			//refresh the lists by seeing what is visible
@@ -307,12 +334,14 @@ public class Army {
 			for(int i = 0; i < startPoss.size(); i++)
 				if(!startChecked[i])
 				{
-					scout.move(startPoss.get(i));
+					for(Unit scout : scouts)
+						scout.move(startPoss.get(i));
 					break;
 				}
 		}
-		else if(scout != null)
-			scout.move(homeBase);
+		else if(scouts.size() > 0)
+			for(Unit scout : scouts)
+				scout.move(homeBase);
 	}
 
 	public void FillStartPositions()
@@ -401,9 +430,9 @@ public class Army {
 		frameCounts.put(troop, 0);
 	}
 
-	public void setScout(Unit scout)
+	public void addScout(Unit scout)
 	{
-		this.scout = scout;
+		scouts.add(scout);
 	}
 	
 	public int size()
