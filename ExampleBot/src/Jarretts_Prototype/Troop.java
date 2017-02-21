@@ -3,7 +3,10 @@ package Jarretts_Prototype;
 import java.util.ArrayList;
 import java.util.List;
 
+import bwapi.Color;
+import bwapi.Game;
 import bwapi.Position;
+import bwapi.TilePosition;
 import bwapi.Unit;
 
 
@@ -12,15 +15,23 @@ public class Troop {
 	public List<Unit> units;
 	private Object lastFrameTarget;
 	private Object attackTarget;
+	private Game game;
 	
-	public Troop(){
+	private Position meanPos;
+	private Position pos;
+	private double unity;
+	
+	public Troop(Game game, Position pos){
+		this.game = game;
+		this.pos = pos;
 		units = new ArrayList<Unit>();
 	}
 	
 	public void manage()
 	{
-
+		
 		if(units.size() > 0){
+			doStatistics();
 			ArrayList<Unit> unitsToRemove = new ArrayList<Unit>();
 			for(Unit zergling : units)
 			{
@@ -49,6 +60,11 @@ public class Troop {
 			{
 				units.remove(zergling);
 			}
+		}
+		else
+		{
+			meanPos = null;
+			unity = 0;
 		}
 	}
 	
@@ -81,5 +97,23 @@ public class Troop {
 		//	unit.attack(target);
 		
 		
+	}
+	
+	private void doStatistics()
+	{
+		int avX = 0;
+		int avY = 0;
+		
+		for(Unit zergling : units)
+		{
+			avX += zergling.getTilePosition().getX();
+			avY += zergling.getTilePosition().getY();
+		}
+		
+		avX /= units.size();
+		avY /= units.size();
+		
+		
+		meanPos = new TilePosition(avX, avY).toPosition();
 	}
 }

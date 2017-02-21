@@ -33,8 +33,8 @@ public class UPStarcraft extends DefaultBWListener{
 	
 	//Static frame limit for how long we rush, most useful for 4-base maps
 	//Dummied right now
-	private final int RUSH_FRAME_COUNT = Integer.MAX_VALUE;
 	private final double RUSH_FAIL_HEURISTIC = 1;
+	private final int SPEED = 5;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -60,7 +60,7 @@ public class UPStarcraft extends DefaultBWListener{
 		BWTA.readMap();
 		BWTA.analyze();
 
-		game.setLocalSpeed(20);
+		game.setLocalSpeed(SPEED);
 
 		army = new Army(self, game, this);
 		//System.out.println("DOES THIS WORK");

@@ -2,6 +2,7 @@ package Jarretts_Prototype;
 
 import java.util.List;
 
+import bwapi.Color;
 import bwapi.Game;
 import bwapi.Player;
 import bwapi.Position;
@@ -47,7 +48,7 @@ public class Base {
 		this.doExtractor = doExtractor;
 		buildingOverlord = false;
 		workerManager = new WorkerManager(self, game);
-		troop = new Troop();
+		troop = new Troop(this.game, hatchery.getPosition());
 		controller.newTroop(troop);
 		basePos = hatchery.getPosition();
 		
@@ -57,10 +58,14 @@ public class Base {
 		gasMorphingStarted = false;
 		gasMorphing2 = false;
 		gasMorpher = null;
+		//poolPos = findPoolPos();
 	}
 
 	public void manage()
 	{
+		if(poolPos != null && !controller.spawnPoolExists)
+			game.drawCircleMap(poolPos.toPosition(), 10, Color.Yellow, true);
+		
 		workerManager.manage();
 		//System.out.println("BASE IS MANAGING");
 
@@ -134,7 +139,7 @@ public class Base {
 				if(poolMorpherDrone != null)
 				{		
 					//System.out.println("Got to 1");
-					poolPos = getBuildTile(poolMorpherDrone, UnitType.Zerg_Spawning_Pool, hatchery.getTilePosition());
+					poolPos = findPoolPos();
 					//System.out.println("Got position at: " + poolPos.toPosition().toString());
 					if(poolPos != null)
 					{
@@ -245,6 +250,74 @@ public class Base {
 	}
 	
 
+	public TilePosition findPoolPos()
+	{
+		boolean minLeft = false;
+		
+		Unit closestMineral = null;
+		int x = hatchery.getTilePosition().getX();
+		int y = hatchery.getTilePosition().getY() + 2;
+		
+		Unit closestGeyser = null;
+		
+		//loop through game's geysers, get closest to our base
+		for(Unit geyser : game.getGeysers() ){
+
+				//calculate distance, if less then is closes
+		
+				if(closestGeyser == null || closestGeyser.getDistance(hatchery.getPosition()) > geyser.getDistance(hatchery.getPosition())){
+					closestGeyser = geyser;
+				}					
+		}
+		
+		for(Unit mineral : game.getMinerals() ){
+
+			//calculate distance, if less then is closes
+			if(closestMineral == null || closestMineral.getDistance(hatchery.getPosition()) > mineral.getDistance(hatchery.getPosition())){
+				closestMineral = mineral;
+			}					
+		}
+		
+		if(hatchery.getTilePosition().getX() > closestMineral.getTilePosition().getX())
+			//minerals are to the left
+			minLeft = true;
+//		if(hatchery.getTilePosition().getY() > closestMineral.getTilePosition().getY())
+//			//minerals are to the above
+//			minAbove = true;
+			
+		if(minLeft)
+		{
+			x += 6;
+			
+			if(hatchery.getTilePosition().getX() - closestGeyser.getTilePosition().getX() < -4)
+			{
+				//geyser is in the way
+				y += 6;
+				x -= 2;
+				
+			}
+			
+		}
+		else
+		{
+			x -= 3;
+			if(hatchery.getTilePosition().getX() - closestGeyser.getTilePosition().getX() > 4)
+			{
+				//geyser is in the way
+				y -= 3;
+				x += 1;
+			}
+		}
+		
+//		if(minAbove)
+//			y += 6;
+//		else
+//			y -= 3;
+		
+		return new TilePosition(x, y);
+		
+	}
+	
 	/** 
 	 * getBuildTile
 	 * 
@@ -301,9 +374,9 @@ public class Base {
 		return ret;
 	}
 	
-	public void setWorkerAmount(int amt)
+	public static void setWorkerAmount(int amt)
 	{
-		this.WORKER_AMOUNT = amt;
+		WORKER_AMOUNT = amt;
 	}
 	
 	public Unit getWorker()

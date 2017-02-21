@@ -170,6 +170,7 @@ public class Army {
 					{
 						basePoss.remove(nextBasePosition);
 						nextBasePosition = null;
+						System.out.println("Deleted the seen base, set to null");
 					}
 					
 					
@@ -256,9 +257,8 @@ public class Army {
 						if(frameCounts.get(t) > 250)
 							trolls.add(unit);
 				}
-				
-				t.manage();
 			}
+			t.manage();
 		}
 
 
