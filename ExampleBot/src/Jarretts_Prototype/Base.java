@@ -10,6 +10,7 @@ import bwapi.Unit;
 import bwapi.UnitType;
 import bwta.BWTA;
 
+//TODO pool placement; make static
 
 public class Base {
 
@@ -32,6 +33,8 @@ public class Base {
 	private boolean doExtractor;
 	private boolean gasMorphing2;
 	private boolean gasMorphingStarted;
+	
+	private static int WORKER_AMOUNT = 5;
 	
 
 
@@ -76,7 +79,7 @@ public class Base {
 		//System.out.println("Larva Size: " + larvae.size());
 
 		//build workers to get to 4?
-		if(!larvae.isEmpty() && workerManager.getNumWorkers() + workersExpected < 4)
+		if(!larvae.isEmpty() && workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT)
 		{
 			//System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
 			Unit larva = larvae.get(0);
@@ -98,7 +101,7 @@ public class Base {
 		}
 
 		//TODO: Need to edit, do we need to have more overlords?
-		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 100+50*larvae.size() && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1))
+		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 150 && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
 		{
 			if(larvae.size()>0)
 			{
@@ -107,7 +110,7 @@ public class Base {
 				//System.out.println("removing one1");
 				larva.morph(UnitType.Zerg_Overlord); //morph
 				minerals -= 100;
-				buildingOverlord=true;
+				buildingOverlord = true;
 			}
 		}else if(self.supplyTotal() > 2)
 		{
@@ -124,6 +127,9 @@ public class Base {
 			{
 				//System.out.println("Starting to find a dude");
 				poolMorpherDrone = workerManager.getWorker();
+				
+				workersExpected++;
+				
 				//System.out.println("Got Worker: " + poolMorpherDrone.toString());
 				if(poolMorpherDrone != null)
 				{		
@@ -283,6 +289,7 @@ public class Base {
 							
 						}
 						
+						
 
 					}
 				}
@@ -292,5 +299,19 @@ public class Base {
 
 		if (ret == null) game.printf("Unable to find suitable build position for "+buildingType.toString());
 		return ret;
+	}
+	
+	public void setWorkerAmount(int amt)
+	{
+		this.WORKER_AMOUNT = amt;
+	}
+	
+	public Unit getWorker()
+	{
+		return workerManager.getWorker();
+	}
+	
+	public void decrementWorkers(){
+		workersExpected--;
 	}
 }

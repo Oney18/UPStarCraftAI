@@ -19,8 +19,11 @@ public class Army {
 	private List<Troop> army;
 	private Player self;
 	private Game game;
-//	private UPStarcraft controller;
+	private UPStarcraft controller;
 	private List<Unit> scouts;
+	private Unit baseScout;
+	private Unit helperScout;
+	
 	private Position enemyBase;
 	private List<Unit> enemyBlds;
 	private List<Unit> enemyWorkers;
@@ -44,11 +47,11 @@ public class Army {
 	private int lastj;
 	private boolean forwardMarch;
 
-	public Army(Player self, Game game){
+	public Army(Player self, Game game, UPStarcraft controller){
 		army = new ArrayList<Troop>();
 		this.self = self;
 		this.game = game;
-		
+		this.controller = controller;
 		enemyBlds = new ArrayList<Unit>();
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
@@ -139,7 +142,11 @@ public class Army {
 				}
 				else if(killedBase)
 				{
-
+					target = enemyBase;
+					
+					if(baseScout == null || !baseScout.exists())
+						baseScout = controller.getWorker();
+					
 					//Base Scouting
 					if (nextBasePosition == null)
 					{
@@ -155,7 +162,8 @@ public class Army {
 
 								}
 							}
-							target = nextBasePosition;
+							if(baseScout != null && baseScout.exists())
+								baseScout.move(nextBasePosition);
 						}
 					}
 					else if (game.isVisible(nextBasePosition.toTilePosition()) && target == null)
@@ -166,18 +174,23 @@ public class Army {
 					
 					
 					//Grid Scouting
+					
+					if(helperScout == null || !helperScout.exists())
+						helperScout = controller.getWorker();
+					
 					if(!game.isVisible(lasti, lastj))
 					{
+						
+						
 						//System.out.println("i can not see" + lasti + "," + lastj);
 						for(Unit scout : scouts)
 							scout.move(new TilePosition(lasti,lastj).toPosition());
-						//endGameScout.move(new TilePosition(lasti,lastj).toPosition());
 						
-						if(basePoss.size() == 0)
-							target = new TilePosition(lasti,lastj).toPosition();
+						if(helperScout == null || !helperScout.exists())
+							helperScout = controller.getWorker();
 						
-//						if(endGameWorker != null && endGameWorker.exists())
-//							endGameWorker.move(new TilePosition(lasti,lastj).toPosition());
+						if(helperScout != null && helperScout.exists())
+							helperScout.move(new TilePosition(lasti,lastj).toPosition());
 						//System.out.println("moving to " + new TilePosition(lasti,lastj));
 					}
 					else
@@ -211,6 +224,9 @@ public class Army {
 						
 						for(Unit scout : scouts)
 							scout.move(new TilePosition(lasti,lastj).toPosition());
+						
+						if(helperScout != null && helperScout.exists())
+							helperScout.move(new TilePosition(lasti,lastj).toPosition());
 						
 						//System.out.println("so im now off to "+ lasti + "," + lastj);
 					}
@@ -262,8 +278,6 @@ public class Army {
 			{
 				if(unit.getType().isWorker())
 				{
-					//kite fix?? NAWP
-					//if(unit.isGatheringMinerals() || unit.isGatheringGas() || unit.isAttacking() || unit.isStartingAttack() || unit.isConstructing())
 					enemyWorkers.add(unit);
 				}
 				else if(unit.getType().canAttack() 	|| unit.getType() == UnitType.Terran_Bunker

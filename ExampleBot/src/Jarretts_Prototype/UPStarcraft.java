@@ -34,7 +34,7 @@ public class UPStarcraft extends DefaultBWListener{
 	//Static frame limit for how long we rush, most useful for 4-base maps
 	//Dummied right now
 	private final int RUSH_FRAME_COUNT = Integer.MAX_VALUE;
-	private final double RUSH_FAIL_HEURISTIC = 0.5;
+	private final double RUSH_FAIL_HEURISTIC = 1;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -60,9 +60,9 @@ public class UPStarcraft extends DefaultBWListener{
 		BWTA.readMap();
 		BWTA.analyze();
 
-		game.setLocalSpeed(4);
+		game.setLocalSpeed(20);
 
-		army = new Army(self, game);
+		army = new Army(self, game, this);
 		//System.out.println("DOES THIS WORK");
 
 		System.out.println("Map name is " + game.mapFileName());
@@ -188,10 +188,10 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onUnitDestroy(Unit unit){
 		if(unit.getPlayer() == game.enemy())
 			enemiesKilled++;
-		else if(!zergDeath && unit.getType() == UnitType.Zerg_Zergling && unit.getPlayer() == self)
+		else if(unit.getType() == UnitType.Zerg_Zergling && unit.getPlayer() == self)
 		{
 			zergsKilled++;
-			if(zergsKilled > 5)
+			if(!zergDeath && zergsKilled > 7)
 				zergDeath = true;
 		}
 	}
@@ -247,19 +247,38 @@ public class UPStarcraft extends DefaultBWListener{
 				}
 			return true;
 		}
-		else if(enemiesSeen != 0 && zergDeath)//enemies is empty cause we see none; initial push failed
+		else if(enemiesSeen != 0 && zergDeath && zergsKilled > 0)//enemies is empty cause we see none; initial push failed
 		{
-			double killRatio = ((double) enemiesKilled) / ((double) enemiesSeen);
+			double killRatio = ((double) enemiesKilled) / ((double) zergsKilled);
 			
 			if(killRatio < RUSH_FAIL_HEURISTIC)
 			{
 				System.out.println("THE RUSH HAS FAILED");
-				System.out.println("The ratio is " + killRatio);
+				System.out.println("The KD ratio is " + killRatio);
+				baseList.get(0).setWorkerAmount(11);
+				baseList.get(0).decrementWorkers();
 				return false;
+			}
+			
+			if(game.enemy().visibleUnitCount() == 0)
+			{
+				enemiesKilled = 0;
+				zergsKilled = 0;
 			}
 		}
 		
 		return true; //haven't seen enemies yet
+	}
+	
+	public Unit getWorker()
+	{
+		for(Base b : baseList)
+		{
+			Unit worker = b.getWorker();
+			if(worker != null)
+				return worker;
+		}
+		return null;
 	}
 }
 
