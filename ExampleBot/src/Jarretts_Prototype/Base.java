@@ -48,7 +48,7 @@ public class Base {
 		this.doExtractor = doExtractor;
 		buildingOverlord = false;
 		workerManager = new WorkerManager(self, game);
-		troop = new Troop(this.game, hatchery.getPosition());
+		troop = new Troop(this.game);
 		controller.newTroop(troop);
 		basePos = hatchery.getPosition();
 		

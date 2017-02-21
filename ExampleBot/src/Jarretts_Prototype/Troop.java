@@ -18,12 +18,10 @@ public class Troop {
 	private Game game;
 	
 	private Position meanPos;
-	private Position pos;
 	private double unity;
 	
-	public Troop(Game game, Position pos){
+	public Troop(Game game){
 		this.game = game;
-		this.pos = pos;
 		units = new ArrayList<Unit>();
 	}
 	
@@ -32,6 +30,8 @@ public class Troop {
 		
 		if(units.size() > 0){
 			doStatistics();
+			game.drawCircleMap(meanPos, 6, Color.Purple);
+			
 			ArrayList<Unit> unitsToRemove = new ArrayList<Unit>();
 			for(Unit zergling : units)
 			{
@@ -115,5 +115,29 @@ public class Troop {
 		
 		
 		meanPos = new TilePosition(avX, avY).toPosition();
+		
+		double stdX = 0;
+		double stdY = 0;
+		
+		for(Unit zergling : units)
+		{
+			stdX += Math.pow(zergling.getTilePosition().getX() - avX, 2);
+			stdY += Math.pow(zergling.getTilePosition().getY() - avY, 2);
+		}
+		
+		stdX = Math.sqrt((double) (stdX / units.size()));
+		stdY = Math.sqrt((double) (stdY / units.size()));
+		
+		unity = (stdX + stdY) / 2;
+	}
+	
+	public double getUnity()
+	{
+		return unity;
+	}
+	
+	public Position getMeanPos()
+	{
+		return meanPos;
 	}
 }

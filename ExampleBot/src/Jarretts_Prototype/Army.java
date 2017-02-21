@@ -102,7 +102,7 @@ public class Army {
 				
 				else if(target == null && !killedBase)
 				{
-					Position zergSpot = t.units.get(0).getPosition();
+					Position zergSpot = t.getMeanPos();
 					if(getUnchecked() == 1)
 					{
 						for(int i=0; i<startPoss.size(); i++)
@@ -123,7 +123,11 @@ public class Army {
 								break;
 							}
 					}
-
+					//TODO sample unity values
+					else if(t.getUnity() < 20)
+					{
+						target = t.getMeanPos();
+					}
 					else
 					{
 						
