@@ -1,13 +1,10 @@
 package Jarretts_Prototype;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import bwapi.*;
 import bwta.BWTA;
-import bwta.BaseLocation;
 
 public class UPStarcraft extends DefaultBWListener{
 	private Mirror mirror = new Mirror();
@@ -24,9 +21,8 @@ public class UPStarcraft extends DefaultBWListener{
 	private boolean init;
 	
 	public boolean rushing;
-	private boolean zergDeath;
+	public boolean zergDeath;
 	private int zergsKilled;
-	private int frameCount;
 	private int enemiesSeen;
 	private int enemiesKilled;
 	private List<Unit> enemiesWitnessed;
@@ -51,7 +47,6 @@ public class UPStarcraft extends DefaultBWListener{
 		init = true;
 		rushing = true;
 		zergsKilled = 0;
-		frameCount = 0;
 		enemiesSeen = 0;
 		enemiesKilled = 0;
 		zergDeath = false;
@@ -110,7 +105,6 @@ public class UPStarcraft extends DefaultBWListener{
 		if(init) init = false; //should mean no duplicates in first frame are done
 		if(rushing)
 			rushing = calculateRush();
-		frameCount++;
 		
 		}
 		catch(Exception e)
@@ -214,6 +208,7 @@ public class UPStarcraft extends DefaultBWListener{
 
 	public void newTroop(Troop troop)
 	{
+		troop.setController(this);		
 		army.addTroop(troop);
 	}
 

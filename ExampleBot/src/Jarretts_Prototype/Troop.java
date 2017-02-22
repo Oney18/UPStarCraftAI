@@ -9,13 +9,16 @@ import bwapi.Position;
 import bwapi.TilePosition;
 import bwapi.Unit;
 
+//TODO brigades?
 
 public class Troop {
 
 	public List<Unit> units;
+	public List<Unit> reserves;
 	private Object lastFrameTarget;
 	private Object attackTarget;
 	private Game game;
+	private UPStarcraft controller;
 	
 	private Position meanPos;
 	private double unity;
@@ -23,14 +26,23 @@ public class Troop {
 	public Troop(Game game){
 		this.game = game;
 		units = new ArrayList<Unit>();
+		reserves = new ArrayList<Unit>();
 	}
 	
 	public void manage()
 	{
+		if(reserves.size() > 5  || !controller.zergDeath)
+		{
+			units.addAll(reserves);
+			reserves.clear();
+		}
 		
-		if(units.size() > 0){
+		
+		if(units.size() > 0){ //rush with 6
 			doStatistics();
-			game.drawCircleMap(meanPos, 6, Color.Purple);
+			
+			//game.drawCircleMap(meanPos, 8, Color.Purple, true);
+			//System.out.println("Unity is " + unity);
 			
 			ArrayList<Unit> unitsToRemove = new ArrayList<Unit>();
 			for(Unit zergling : units)
@@ -70,7 +82,7 @@ public class Troop {
 	
 	public void addUnit(Unit u)
 	{
-		units.add(u);
+		reserves.add(u);
 	}
 	
 	public void move(Position p)
@@ -139,5 +151,10 @@ public class Troop {
 	public Position getMeanPos()
 	{
 		return meanPos;
+	}
+	
+	public void setController(UPStarcraft c)
+	{
+		controller = c;
 	}
 }

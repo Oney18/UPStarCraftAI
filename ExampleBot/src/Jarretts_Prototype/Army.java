@@ -3,6 +3,7 @@ package Jarretts_Prototype;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Random;
 
 import bwapi.Game;
 import bwapi.Player;
@@ -46,12 +47,16 @@ public class Army {
 	private int lasti;
 	private int lastj;
 	private boolean forwardMarch;
+	private Random RNGesus;
+	private int frames;
 
 	public Army(Player self, Game game, UPStarcraft controller){
 		army = new ArrayList<Troop>();
 		this.self = self;
 		this.game = game;
 		this.controller = controller;
+		frames = 0;
+		RNGesus = new Random();
 		enemyBlds = new ArrayList<Unit>();
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
@@ -79,6 +84,7 @@ public class Army {
 	public void manage()
 	{
 		scoutOverlord();
+		
 		getSeenEnemies();
 		for(int q = 0; q < army.size(); q++)
 		{
@@ -124,7 +130,7 @@ public class Army {
 							}
 					}
 					//TODO sample unity values
-					else if(t.getUnity() < 20)
+					else if(t.getUnity() < 0)
 					{
 						target = t.getMeanPos();
 					}
@@ -146,7 +152,12 @@ public class Army {
 				}
 				else if(killedBase)
 				{
-					target = enemyBase;
+					frames++;
+					if(frames == 300)
+					{
+						target = new TilePosition(RNGesus.nextInt(game.mapWidth()), RNGesus.nextInt(game.mapHeight())).toPosition();
+						frames = 0;
+					}
 					
 					if(baseScout == null || !baseScout.exists())
 						baseScout = controller.getWorker();
@@ -162,15 +173,13 @@ public class Army {
 								{
 									nextBasePosition = base;
 									System.out.println("Assigned next base target");
-									
-
 								}
 							}
 							if(baseScout != null && baseScout.exists())
 								baseScout.move(nextBasePosition);
 						}
 					}
-					else if (game.isVisible(nextBasePosition.toTilePosition()) && target == null)
+					else if (game.isVisible(nextBasePosition.toTilePosition()))
 					{
 						basePoss.remove(nextBasePosition);
 						nextBasePosition = null;

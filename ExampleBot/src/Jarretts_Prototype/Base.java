@@ -11,14 +11,11 @@ import bwapi.Unit;
 import bwapi.UnitType;
 import bwta.BWTA;
 
-//TODO pool placement; make static
-
 public class Base {
 
 	private UPStarcraft controller;
 	private Player self;
 	private Game game;
-	private Position basePos;
 	private Unit hatchery;
 	private WorkerManager workerManager;
 	private Troop troop;
@@ -34,6 +31,7 @@ public class Base {
 	private boolean doExtractor;
 	private boolean gasMorphing2;
 	private boolean gasMorphingStarted;
+	private int frames;
 	
 	private static int WORKER_AMOUNT = 5;
 	
@@ -46,11 +44,11 @@ public class Base {
 		this.self = self;
 		this.game = game;
 		this.doExtractor = doExtractor;
+		frames = 0;
 		buildingOverlord = false;
 		workerManager = new WorkerManager(self, game);
 		troop = new Troop(this.game);
 		controller.newTroop(troop);
-		basePos = hatchery.getPosition();
 		
 		//This is set to account for the starting drones we get
 		workersExpected = 4;
@@ -84,7 +82,7 @@ public class Base {
 		//System.out.println("Larva Size: " + larvae.size());
 
 		//build workers to get to 4?
-		if(!larvae.isEmpty() && workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT)
+		if(larvae.size() == 3 && workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT)
 		{
 			//System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
 			Unit larva = larvae.get(0);
@@ -105,7 +103,6 @@ public class Base {
 			minerals =- 50;
 		}
 
-		//TODO: Need to edit, do we need to have more overlords?
 		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 150 && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
 		{
 			if(larvae.size()>0)
@@ -152,21 +149,33 @@ public class Base {
 			}
 			else if(minerals >=200) //anything over 200
 			{
-				if(poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition()))
+				if(!buildingPool && poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition()))
 				{
-					//System.out.println("trying to build");
+					System.out.println("trying to build");
 					poolMorpherDrone.build(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition());
+					
 					if(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0)
 					{
 						buildingPool = true;
+						System.out.println("Set building pool to true");
 					}
 				}
-				else if(!buildingPool && poolMorpherDrone.getPosition().equals(poolPos.toPosition()))
+				else if(!buildingPool && !poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition()))
+				{
+					frames++;
+					if(frames > 50)
+					{
+						poolMorpherDrone.move(poolPos.toPosition());
+						frames = 0;
+					}
+				}
+				else if(!buildingPool && poolMorpherDrone.getTilePosition().getDistance(poolPos) > 2)
 					//&& !poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition())
 				{
 					//maybe still moving, let it keep moving to the spot we found works
-					poolMorpherDrone.move(basePos);
-					//System.out.println("move home");
+					//poolMorpherDrone.move(basePos);
+					//System.out.println(poolMorpherDrone.getTilePosition().getDistance(poolPos));
+					poolMorpherDrone.move(poolPos.toPosition());
 					//if you command it to move, it gets mad and won't obey. too many commands
 				}
 			}						
@@ -281,9 +290,6 @@ public class Base {
 		if(hatchery.getTilePosition().getX() > closestMineral.getTilePosition().getX())
 			//minerals are to the left
 			minLeft = true;
-//		if(hatchery.getTilePosition().getY() > closestMineral.getTilePosition().getY())
-//			//minerals are to the above
-//			minAbove = true;
 			
 		if(minLeft)
 		{
@@ -292,7 +298,7 @@ public class Base {
 			if(hatchery.getTilePosition().getX() - closestGeyser.getTilePosition().getX() < -4)
 			{
 				//geyser is in the way
-				y += 6;
+				y += 3;
 				x -= 2;
 				
 			}
@@ -304,74 +310,13 @@ public class Base {
 			if(hatchery.getTilePosition().getX() - closestGeyser.getTilePosition().getX() > 4)
 			{
 				//geyser is in the way
-				y -= 3;
+				y += 3;
 				x += 1;
 			}
 		}
 		
-//		if(minAbove)
-//			y += 6;
-//		else
-//			y -= 3;
-		
 		return new TilePosition(x, y);
 		
-	}
-	
-	/** 
-	 * getBuildTile
-	 * 
-	 * Returns a suitable TilePosition to build a given building type near 
-	 * Highly inefficient, ripped from SSCAIT tutorial
-	 * 
-	 * @param builder
-	 * @param buildingType
-	 * @param aroundTile
-	 * @return
-	 */
-	private TilePosition getBuildTile(Unit builder, UnitType buildingType, TilePosition aroundTile) {
-		TilePosition ret = null;
-		int maxDist = 3;
-		int stopDist = 40;
-
-		while ((maxDist < stopDist) && (ret == null)) {
-			for (int i=aroundTile.getX()-maxDist; i<=aroundTile.getX()+maxDist; i++) {
-				for (int j=aroundTile.getY()-maxDist; j<=aroundTile.getY()+maxDist; j++) {
-					if (game.canBuildHere(new TilePosition(i,j), buildingType, builder, false)) {
-						// units that are blocking the tile
-						boolean unitsInWay = false;
-						for (Unit u : game.getAllUnits()) {
-							if (u.getID() == builder.getID()) continue;
-							if ((Math.abs(u.getTilePosition().getX()-i) < 5) && (Math.abs(u.getTilePosition().getY()-j) < 5)) unitsInWay = true;
-						}
-						
-						if (!unitsInWay) {
-							return new TilePosition(i, j);
-						}
-						
-						// creep for Zerg
-						if (buildingType.requiresCreep()) {
-							boolean creepMissing = false;
-							for (int k=i; k<=i+buildingType.tileWidth(); k++) {
-								for (int l=j; l<=j+buildingType.tileHeight(); l++) {
-									if (!game.hasCreep(k, l)) creepMissing = true;
-									break;
-								}
-							}
-							if (creepMissing) continue; 
-							
-						}
-						
-						
-
-					}
-				}
-			}
-			maxDist += 2;
-		}
-
-		if (ret == null) game.printf("Unable to find suitable build position for "+buildingType.toString());
-		return ret;
 	}
 	
 	public static void setWorkerAmount(int amt)
