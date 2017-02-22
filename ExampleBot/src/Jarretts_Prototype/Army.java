@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 
 import bwapi.Game;
+import bwapi.Color;
 import bwapi.Player;
 import bwapi.Position;
 import bwapi.TilePosition;
@@ -47,8 +48,9 @@ public class Army {
 	private int lasti;
 	private int lastj;
 	private boolean forwardMarch;
-	private Random RNGesus;
 	private int frames;
+	private int scoutCounter;
+	private int scoutDist;
 
 	public Army(Player self, Game game, UPStarcraft controller){
 		army = new ArrayList<Troop>();
@@ -56,7 +58,8 @@ public class Army {
 		this.game = game;
 		this.controller = controller;
 		frames = 0;
-		RNGesus = new Random();
+		scoutCounter = 0;
+		scoutDist = 1;
 		enemyBlds = new ArrayList<Unit>();
 		enemyWorkers = new ArrayList<Unit>();
 		enemyCores = new ArrayList<Unit>();
@@ -129,7 +132,7 @@ public class Army {
 								break;
 							}
 					}
-					//TODO sample unity values
+					//TODO sample unity values, determine if this is even good or needed
 					else if(t.getUnity() < 0)
 					{
 						target = t.getMeanPos();
@@ -153,11 +156,36 @@ public class Army {
 				else if(killedBase)
 				{
 					frames++;
-					if(frames == 300)
+					if(frames == 90 + scoutDist*15)
 					{
-						target = new TilePosition(RNGesus.nextInt(game.mapWidth()), RNGesus.nextInt(game.mapHeight())).toPosition();
 						frames = 0;
+						scoutCounter++;
+						if(scoutCounter == 4)
+						{
+							scoutCounter = 0;
+							scoutDist++;
+						}
 					}
+					
+					switch(scoutCounter)
+					{
+					case 0:
+						target = new TilePosition(enemyBase.toTilePosition().getX() + scoutDist, enemyBase.toTilePosition().getY()).toPosition();
+						break;
+						
+					case 1:
+						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() + scoutDist).toPosition();
+						break;
+						
+					case 2:
+						target = new TilePosition(enemyBase.toTilePosition().getX() - scoutDist, enemyBase.toTilePosition().getY()).toPosition();
+						break;
+						
+					case 3:
+						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() - scoutDist).toPosition();
+						break;
+					}
+					
 					
 					if(baseScout == null || !baseScout.exists())
 						baseScout = controller.getWorker();
@@ -247,6 +275,8 @@ public class Army {
 
 				}
 
+				if(target instanceof Position)
+					game.drawCircleMap((Position)target, 10, Color.White, true);
 				//System.out.println(target);
 				t.setAttackTarget(target);
 				if(target instanceof Unit)
@@ -313,7 +343,6 @@ public class Army {
 							enemyBase = unit.getPosition();
 					}
 					else
-						//TODO make a way to sort buildings based on priority. those that can attack back should be higher.
 						enemyBlds.add(unit);
 				}
 
