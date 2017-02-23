@@ -5,6 +5,7 @@ import java.util.List;
 
 import bwapi.*;
 import bwta.BWTA;
+import bwta.BaseLocation;
 
 public class UPStarcraft extends DefaultBWListener{
 	private Mirror mirror = new Mirror();
@@ -26,6 +27,11 @@ public class UPStarcraft extends DefaultBWListener{
 	private int enemiesSeen;
 	private int enemiesKilled;
 	private List<Unit> enemiesWitnessed;
+	private List<TilePosition> basePositions;
+	
+	public Position enemyBase;
+	
+	int frames;
 	
 	//Static frame limit for how long we rush, most useful for 4-base maps
 	//Dummied right now
@@ -44,7 +50,9 @@ public class UPStarcraft extends DefaultBWListener{
 
 	@Override
 	public void onStart() {
+		frames = 0;
 		init = true;
+		enemyBase = null;
 		rushing = true;
 		zergsKilled = 0;
 		enemiesSeen = 0;
@@ -59,6 +67,12 @@ public class UPStarcraft extends DefaultBWListener{
 		game.setLocalSpeed(SPEED);
 
 		army = new Army(self, game, this);
+		
+		basePositions = new ArrayList<TilePosition>();
+		for(Position pos : army.basePoss)
+		{
+			basePositions.add(pos.toTilePosition());
+		}
 		//System.out.println("DOES THIS WORK");
 
 		System.out.println("Map name is " + game.mapFileName());
@@ -95,11 +109,22 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onFrame() {
 		if(game.isPaused())
 			return;
+		
+		frames++;
+		
+		if(frames > 2)
+			rushing = false;
 
 		try{
 			army.manage();
+			
+			if(!rushing)
+				assignBases();
+			
+			int mineralsAllocated = self.minerals() / baseList.size();
+			
 			for(Base base: baseList)
-				base.manage();
+				base.manage(mineralsAllocated);
 		
 
 		if(init) init = false; //should mean no duplicates in first frame are done
@@ -182,7 +207,14 @@ public class UPStarcraft extends DefaultBWListener{
 	@Override
 	public void onUnitDestroy(Unit unit){
 		if(unit.getPlayer() == game.enemy())
+		{
 			enemiesKilled++;
+			if(unit.getPosition().equals(enemyBase))
+			{
+				army.killedBase = true;
+				System.out.println("Killed the base");
+			}
+		}
 		else if(unit.getType() == UnitType.Zerg_Zergling && unit.getPlayer() == self)
 		{
 			zergsKilled++;
@@ -190,6 +222,7 @@ public class UPStarcraft extends DefaultBWListener{
 				zergDeath = true;
 		}
 	}
+
 	
 	
 	private int games = 0;
@@ -202,9 +235,6 @@ public class UPStarcraft extends DefaultBWListener{
     	else System.out.println("We lost this one.");
     	System.out.println("Game ended: " + wins + "/" + games);
     }
-	
-	
-	
 
 	public void newTroop(Troop troop)
 	{
@@ -225,6 +255,21 @@ public class UPStarcraft extends DefaultBWListener{
 			}
 		}
 		return returnUnit;
+	}
+	
+	private static TilePosition findClosestPosition(List<TilePosition> list, Unit u)
+	{
+		TilePosition returnPos = null;
+		int distance = Integer.MAX_VALUE;
+		for(TilePosition pos : list)
+		{
+			if(pos.getDistance(u.getTilePosition()) < distance)
+			{
+				distance = (int) pos.getDistance(u.getTilePosition());
+				returnPos = pos;
+			}
+		}
+		return returnPos;
 	}
 
 	private boolean calculateRush()
@@ -264,6 +309,23 @@ public class UPStarcraft extends DefaultBWListener{
 		}
 		
 		return true; //haven't seen enemies yet
+	}
+	
+	
+	private void assignBases()
+	{
+		for(Base base : baseList)
+		{
+			if(base.getTarget() == null)
+			{
+				TilePosition basePos = findClosestPosition(basePositions, base.getHatchery());
+				if(basePos != null)
+				{
+					base.setTarget(basePos);
+					basePositions.remove(basePos);
+				}
+			}
+		}
 	}
 	
 	public Unit getWorker()

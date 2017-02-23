@@ -27,11 +27,12 @@ public class Army {
 	private Unit helperScout;
 	
 	private Position enemyBase;
+	private Unit enemyBaseUnit;
 	private List<Unit> enemyBlds;
 	private List<Unit> enemyWorkers;
 	private List<Unit> enemyCores;
 	private List<Unit> enemyProblems;
-	private boolean killedBase;
+	public boolean killedBase;
 	
 	private List<Unit> trolls;
 	private Hashtable<Troop, Unit> lastTargets;
@@ -74,6 +75,7 @@ public class Army {
 		
 		
 		enemyBase = null;
+		enemyBaseUnit = null;
 		killedBase = false;
 		nextBasePosition = null;
 		FillStartPositions();
@@ -112,12 +114,15 @@ public class Army {
 				else if(target == null && !killedBase)
 				{
 					Position zergSpot = t.getMeanPos();
-					if(getUnchecked() == 1)
+					if(enemyBase == null && getUnchecked() == 1)
 					{
 						for(int i=0; i<startPoss.size(); i++)
 						{
 							if(!startChecked[i])
+							{
 								enemyBase = startPoss.get(i); //zergling.move(startPoss.get(i));
+								System.out.println("Set enemy base (get Unchecked)");
+							}
 						}
 					}
 					if(enemyBase == null)
@@ -132,16 +137,16 @@ public class Army {
 								break;
 							}
 					}
-					//TODO sample unity values, determine if this is even good or needed
-					else if(t.getUnity() < 0)
-					{
-						target = t.getMeanPos();
-					}
+//					//TODO sample unity values, determine if this is even good or needed
+//					else if(t.getUnity() < 0)
+//					{
+//						target = t.getMeanPos();
+//					}
 					else
 					{
-						
 						if(game.isVisible(enemyBase.toTilePosition()))
 						{
+							System.out.println("Enemy base dead?");
 							killedBase = true;
 							startChecked[startPoss.indexOf(enemyBase)] = true;
 							
@@ -156,34 +161,51 @@ public class Army {
 				else if(killedBase)
 				{
 					frames++;
-					if(frames == 90 + scoutDist*15)
+					if(frames == 30 + scoutDist*7)
 					{
 						frames = 0;
 						scoutCounter++;
-						if(scoutCounter == 4)
+						if(scoutCounter == 8)
 						{
 							scoutCounter = 0;
-							scoutDist++;
+							scoutDist += 2;
 						}
 					}
 					
 					switch(scoutCounter)
 					{
 					case 0:
-						target = new TilePosition(enemyBase.toTilePosition().getX() + scoutDist, enemyBase.toTilePosition().getY()).toPosition();
+						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() - scoutDist).toPosition();
 						break;
 						
 					case 1:
-						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() + scoutDist).toPosition();
+						target = new TilePosition(enemyBase.toTilePosition().getX() + scoutDist, enemyBase.toTilePosition().getY() - scoutDist).toPosition();
 						break;
 						
 					case 2:
-						target = new TilePosition(enemyBase.toTilePosition().getX() - scoutDist, enemyBase.toTilePosition().getY()).toPosition();
+						target = new TilePosition(enemyBase.toTilePosition().getX() + scoutDist, enemyBase.toTilePosition().getY()).toPosition();
 						break;
 						
 					case 3:
-						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() - scoutDist).toPosition();
+						target = new TilePosition(enemyBase.toTilePosition().getX() + scoutDist, enemyBase.toTilePosition().getY() + scoutDist).toPosition();
 						break;
+						
+					case 4:
+						target = new TilePosition(enemyBase.toTilePosition().getX(), enemyBase.toTilePosition().getY() + scoutDist).toPosition();
+						break;
+						
+					case 5:
+						target = new TilePosition(enemyBase.toTilePosition().getX() - scoutDist, enemyBase.toTilePosition().getY() + scoutDist).toPosition();
+						break;
+						
+					case 6:
+						target = new TilePosition(enemyBase.toTilePosition().getX() - scoutDist, enemyBase.toTilePosition().getY()).toPosition();
+						break;
+						
+					case 7:
+						target = new TilePosition(enemyBase.toTilePosition().getX() - scoutDist, enemyBase.toTilePosition().getY() - scoutDist).toPosition();
+						break;
+						
 					}
 					
 					
@@ -200,7 +222,7 @@ public class Army {
 								if(nextBasePosition==null || base.getDistance(t.units.get(0).getPosition()) < nextBasePosition.getDistance(t.units.get(0).getPosition()))
 								{
 									nextBasePosition = base;
-									System.out.println("Assigned next base target");
+									//System.out.println("Assigned next base target");
 								}
 							}
 							if(baseScout != null && baseScout.exists())
@@ -211,7 +233,7 @@ public class Army {
 					{
 						basePoss.remove(nextBasePosition);
 						nextBasePosition = null;
-						System.out.println("Deleted the seen base, set to null");
+						//System.out.println("Deleted the seen base, set to null");
 					}
 					
 					
@@ -277,7 +299,9 @@ public class Army {
 
 				if(target instanceof Position)
 					game.drawCircleMap((Position)target, 10, Color.White, true);
-				//System.out.println(target);
+				else if(target instanceof Unit)
+					game.drawCircleMap(((Unit)target).getPosition(), 10, Color.Red, true);
+				
 				t.setAttackTarget(target);
 				if(target instanceof Unit)
 				{
@@ -340,7 +364,19 @@ public class Army {
 						enemyCores.add(unit);
 						
 						if(enemyBase == null && startPoss.contains(unit.getPosition()))
+						{
+							System.out.println("Set enemy base (seen)");
 							enemyBase = unit.getPosition();
+							enemyBaseUnit = unit;
+							controller.enemyBase = unit.getPosition();
+						}
+						
+						if(enemyBaseUnit == null && startPoss.contains(unit.getPosition()))
+						{
+							System.out.println("Set enemy unit (seen)");
+							enemyBaseUnit = unit;
+							controller.enemyBase = unit.getPosition();
+						}
 					}
 					else
 						enemyBlds.add(unit);
