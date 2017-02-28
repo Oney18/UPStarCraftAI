@@ -29,6 +29,12 @@ public class Troop {
 		reserves = new ArrayList<Unit>();
 	}
 	
+	public int getSize()
+	{
+		return units.size() + reserves.size();
+	}
+	
+	
 	public void manage()
 	{
 		if(reserves.size() > 5  || !controller.zergDeath)
@@ -36,7 +42,6 @@ public class Troop {
 			units.addAll(reserves);
 			reserves.clear();
 		}
-		
 		
 		if(units.size() > 0){ //rush with 6
 			doStatistics();

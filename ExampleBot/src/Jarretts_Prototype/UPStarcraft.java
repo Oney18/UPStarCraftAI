@@ -112,8 +112,11 @@ public class UPStarcraft extends DefaultBWListener{
 		
 		frames++;
 		
-		if(frames > 2)
+		if(frames > 2000)
+		{
 			rushing = false;
+			Base.setWorkerAmount(10);
+		}
 
 		try{
 			army.manage();
@@ -121,10 +124,10 @@ public class UPStarcraft extends DefaultBWListener{
 			if(!rushing)
 				assignBases();
 			
-			int mineralsAllocated = self.minerals() / baseList.size();
+			int allocatedMinerals = self.minerals()/baseList.size();
 			
 			for(Base base: baseList)
-				base.manage(mineralsAllocated);
+				base.manage(allocatedMinerals);
 		
 
 		if(init) init = false; //should mean no duplicates in first frame are done
@@ -190,18 +193,31 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onUnitComplete(Unit unit){
 		if(init)
 			; //Need to set up initial data structures
-		else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
+		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && unit.getPlayer() == self)
 		{
 			spawnPoolExists = true;
 		}
-		else if(unit.getType() == UnitType.Zerg_Extractor)
+		else if(unit.getType() == UnitType.Zerg_Extractor && unit.getPlayer() == self)
 		{
 			cheesed = true;
 		}
-		else if(unit.getType() == UnitType.Zerg_Hatchery)
+		else if(unit.getType() == UnitType.Zerg_Hatchery && unit.getPlayer() == self)
 		{
+			for(Base base : baseList)
+			{
+				TilePosition target = base.getTarget();
+				if(target != null)
+					if(target.getDistance(unit.getTilePosition()) < 10 )
+					{
+						base.setTarget(null);
+						base.nullify();
+						//System.out.println("Nulled worker");
+						break;
+					}
+			}
 			Base b = new Base(this, self, game, unit, false);
 			baseList.add(b);
+			basesMade.add(unit);
 		}
 	}
 	@Override
@@ -221,6 +237,8 @@ public class UPStarcraft extends DefaultBWListener{
 			if(!zergDeath && zergsKilled > 7)
 				zergDeath = true;
 		}
+		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && unit.getPlayer() == self)
+			spawnPoolExists = false;
 	}
 
 	
@@ -296,7 +314,7 @@ public class UPStarcraft extends DefaultBWListener{
 			{
 				System.out.println("THE RUSH HAS FAILED");
 				System.out.println("The KD ratio is " + killRatio);
-				baseList.get(0).setWorkerAmount(11);
+				baseList.get(0).setWorkerAmount(6);
 				baseList.get(0).decrementWorkers();
 				return false;
 			}

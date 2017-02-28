@@ -1,6 +1,7 @@
 package Jarretts_Prototype;
 
 import java.util.List;
+import java.util.Random;
 
 import bwapi.Color;
 import bwapi.Game;
@@ -34,13 +35,13 @@ public class Base {
 	private boolean gasMorphingStarted;
 	private int frames;
 	private Unit baseWorker;
-	private boolean buildingBase;
 	private int baseFrames;
+	private boolean buildingBase;
+	private boolean builtInitDrone;
 	
-	private static int WORKER_AMOUNT = 5;
+	private Random RNGesus;
 	
-
-
+	private static int WORKER_AMOUNT = 4;
 
 	public Base(UPStarcraft controller, Player self, Game game, Unit hatchery, boolean doExtractor){
 		this.controller = controller;
@@ -48,14 +49,16 @@ public class Base {
 		this.self = self;
 		this.game = game;
 		this.doExtractor = doExtractor;
+		builtInitDrone = false;
+		RNGesus = new Random();
 		buildingBase = false;
 		baseWorker = null;
 		baseTarget = null;
 		baseFrames = 0;
 		frames = 0;
 		buildingOverlord = false;
-		workerManager = new WorkerManager(self, game);
-		troop = new Troop(this.game);
+		workerManager = new WorkerManager(self, game, doExtractor);
+		troop = new Troop(game);
 		controller.newTroop(troop);
 		
 		//This is set to account for the starting drones we get
@@ -67,56 +70,67 @@ public class Base {
 		gasMorphingStarted = false;
 		gasMorphing2 = false;
 		gasMorpher = null;
-		//poolPos = findPoolPos();
 	}
 
 	public void manage(int minerals)
-	{
+	{	
+		List<Unit> larvae = hatchery.getLarva();
+		game.drawTextMap(hatchery.getPosition(), "allocatedMin: " + minerals + "\nnumWorkers : " + workerManager.getNumWorkers() + "\nzergs: " + troop.getSize() + 
+				"\nnumLarva: " + larvae.size() + "\nexpectedWorkers: " + workersExpected + "\nworkerCountStat: " + WORKER_AMOUNT);
+
+		
 		if(poolPos != null && !controller.spawnPoolExists)
 			game.drawCircleMap(poolPos.toPosition(), 10, Color.Yellow, true);
 		
 		workerManager.manage();
-		//System.out.println("BASE IS MANAGING");
 
 		if(!controller.spawnPoolExists)
-			makeSpawnPool(self.minerals());
+			makeSpawnPool(minerals);
 		if(doExtractor)
-			extractorTrick(self.minerals());
-		if(!controller.rushing)
-			expand(minerals);
+			extractorTrick(minerals);
+
 		
 
-		//			if(doExtractor && !doneExtractor)
-		//				extractorTrick(self.minerals());
-
-
-
-		List<Unit> larvae = hatchery.getLarva();
-		//System.out.println("Larva Size: " + larvae.size());
-
+		//Initial drone building
+		if(doExtractor && !builtInitDrone && minerals >= 50)
+		{
+			Unit larva = larvae.get(0);
+			if(larva.morph(UnitType.Zerg_Drone))
+			{
+				workersExpected++;
+			}
+			
+			larvae.remove(larva);
+			minerals -= 50;
+			
+			builtInitDrone = true;
+		}
+		
 		//build workers to get to 4?
-		if(larvae.size() > 1 && workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT)
+		while(workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT && minerals >= 50 && !larvae.isEmpty())
 		{
 			//System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
 			Unit larva = larvae.get(0);
-			larva.morph(UnitType.Zerg_Drone);
+			if(larva.morph(UnitType.Zerg_Drone))
+			{
+				workersExpected++;
+			}
 			larvae.remove(larva);
-			minerals =- 50;
-			workersExpected++;
+			minerals -= 50;
 		}
 
-//		//ZERGLINGS
-//		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && larvae.size() > 0)
-//		{
-//			//System.out.println("building zerg");
-//			Unit larva = larvae.get(0); //get a larvae
-//			larvae.remove(0); //remove from array
-//			//System.out.println("removing one");
-//			larva.morph(UnitType.Zerg_Zergling); //morph
-//			minerals =- 50;
-//		}
+		//ZERGLINGS
+		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && !larvae.isEmpty() && troop.getSize() < 16)
+		{
+			//System.out.println("building zerg");
+			Unit larva = larvae.get(0); //get a larvae
+			larvae.remove(0); //remove from array
+			//System.out.println("removing one");
+			larva.morph(UnitType.Zerg_Zergling); //morph
+			minerals =- 50;
+		}
 
-		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 150 && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
+		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 100 && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
 		{
 			if(larvae.size()>0)
 			{
@@ -131,6 +145,10 @@ public class Base {
 		{
 			buildingOverlord = false;
 		}
+		
+		if(!controller.rushing)
+			expand(minerals);
+		
 	}
 
 	private void makeSpawnPool(int minerals)
@@ -143,7 +161,6 @@ public class Base {
 				//System.out.println("Starting to find a dude");
 				poolMorpherDrone = workerManager.getWorker();
 				
-				workersExpected++;
 				
 				//System.out.println("Got Worker: " + poolMorpherDrone.toString());
 				if(poolMorpherDrone != null)
@@ -204,6 +221,7 @@ public class Base {
 			{
 				//System.out.println("trying to cancel");
 				gasMorpher.cancelMorph();
+				workersExpected--;
 				gasMorphingStarted = false;
 				controller.cheesed = true;
 			}
@@ -221,6 +239,7 @@ public class Base {
 				makeGas();
 			}
 			minerals -= 50;
+			
 			gasMorphingStarted = true;
 		}
 	}
@@ -228,6 +247,7 @@ public class Base {
 	private void makeGas()
 	{
 		Unit builder = workerManager.getWorker();
+		workersExpected++;
 		// make sure the builder is not null
 		if(builder != null)
 		{	
@@ -247,7 +267,6 @@ public class Base {
 			}
 
 			builder.build(UnitType.Zerg_Extractor, closestGeyser.getTilePosition());
-			workersExpected++;
 			gasMorphingStarted = true;
 			//System.out.println("Sent the builder?");
 		}
@@ -336,34 +355,41 @@ public class Base {
 			return;
 		
 		//get the worker
-		if(baseWorker == null || !baseWorker.exists())
+		if((baseWorker == null || !baseWorker.exists()) && minerals > 270)
+		{
 			baseWorker = workerManager.getWorker();
-		
+		}
 		//run to the base
-		if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 20)
+		if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 10)
 		{
 			baseWorker.move(baseTarget.toPosition());
-			System.out.println(baseWorker.getTilePosition().getDistance(baseTarget));
 		}
 		
 		//build the base
-		else if(baseWorker != null && baseWorker.exists() && minerals > 300 && baseWorker.canBuild(UnitType.Zerg_Hatchery))
+		else if(baseWorker != null && baseWorker.exists() && minerals >= 300 && baseWorker.canBuild(UnitType.Zerg_Hatchery))
 		{
 			baseFrames++;
+			//TODO find closest mineral, move away from, right now it just randomly twitches about
 			if(baseFrames == 50)
 			{
 				baseFrames = 0;
-				baseWorker.move(baseTarget.toPosition());
+				int deltaX = RNGesus.nextInt(2);
+				int deltaY = RNGesus.nextInt(2);
+				
+				if(RNGesus.nextBoolean())
+					deltaX *= -1;
+				if(RNGesus.nextBoolean())
+					deltaY *= -1;
+				
+				
+				int x = baseTarget.getX() + deltaX;
+				int y = baseTarget.getY() + deltaY;
+				baseWorker.move(new TilePosition(x, y).toPosition());
 				baseWorker.build(UnitType.Zerg_Hatchery, baseWorker.getTilePosition());
 			}
 		}
-		else
-		{
-			//System.out.println("canBuild is " + baseWorker.canBuild(UnitType.Zerg_Hatchery, baseWorker.getTilePosition()) );
-			System.out.println("Did not enter building block");
-			System.out.println("Minerals at " + minerals);
-		}
-		
+		else if(baseWorker != null && baseWorker.exists() && baseWorker.isMorphing())
+			buildingBase = true;
 	}
 	
 	public static void setWorkerAmount(int amt)
@@ -393,6 +419,12 @@ public class Base {
 	public void setTarget(TilePosition pos)
 	{
 		baseTarget = pos;
-		System.out.println("Set target to " + pos);
+	}
+	
+	public void nullify()
+	{
+		baseWorker = null;
+		baseTarget = null;
+		buildingBase = false;
 	}
 }

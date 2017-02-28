@@ -15,11 +15,17 @@ public class WorkerManager {
 	private List<Unit> workers;
 	private Player self;
 	private Game game;
+	private int mineralsMined;
 	
-	public WorkerManager(Player self, Game game){
+	public WorkerManager(Player self, Game game, boolean init){
 		this.self = self;
 		this.game = game;
 		workers = new ArrayList<Unit>();
+		
+		if(init)
+			mineralsMined = 50; //initial base
+		else
+			mineralsMined = 200; //built from existing base
 	}
 	
 	public void addWorker(Unit worker){
@@ -105,8 +111,12 @@ public class WorkerManager {
 				}
 			}
 		}
-		
 		return closest;
+	}
+	
+	public int getMineralsMined()
+	{
+		return mineralsMined;
 	}
 	
 }

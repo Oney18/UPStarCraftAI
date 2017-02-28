@@ -90,6 +90,9 @@ public class Army {
 	{
 		scoutOverlord();
 		
+		if(!controller.rushing)
+			return;
+		
 		getSeenEnemies();
 		for(int q = 0; q < army.size(); q++)
 		{
