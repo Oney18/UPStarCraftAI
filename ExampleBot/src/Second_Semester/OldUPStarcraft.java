@@ -8,7 +8,7 @@ import bwapi.*;
 import bwta.BWTA;
 import bwta.BaseLocation;
 
-public class UPStarcraft extends DefaultBWListener{
+public class OldUPStarcraft extends DefaultBWListener{
 	private Mirror mirror = new Mirror();
 	private Game game;
 	private Player self;
@@ -22,7 +22,7 @@ public class UPStarcraft extends DefaultBWListener{
 	private Army army;
 	
 	public static void main(String[] args) {
-		new UPStarcraft().run();
+		new OldUPStarcraft().run();
 	}
 	
 	public void run() {

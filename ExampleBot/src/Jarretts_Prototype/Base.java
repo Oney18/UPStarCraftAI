@@ -28,6 +28,7 @@ public class Base {
 	private TilePosition poolPos;
 	private int workersExpected;
 	private TilePosition baseTarget;
+	private TilePosition altTarget;
 
 	public Unit gasMorpher;
 	private boolean doExtractor;
@@ -38,9 +39,9 @@ public class Base {
 	private int baseFrames;
 	private boolean buildingBase;
 	private boolean builtInitDrone;
-	
+
 	private Random RNGesus;
-	
+
 	private static int WORKER_AMOUNT = 4;
 
 	public Base(UPStarcraft controller, Player self, Game game, Unit hatchery, boolean doExtractor){
@@ -60,52 +61,71 @@ public class Base {
 		workerManager = new WorkerManager(self, game, doExtractor);
 		troop = new Troop(game);
 		controller.newTroop(troop);
-		
+
 		//This is set to account for the starting drones we get
 		if(doExtractor)
 			workersExpected = 4;
 		else
 			workersExpected = 0;
-		
+
 		gasMorphingStarted = false;
 		gasMorphing2 = false;
 		gasMorpher = null;
 	}
 
-	public void manage(int minerals)
+	public int manage(int minerals)
 	{	
 		List<Unit> larvae = hatchery.getLarva();
+
 		game.drawTextMap(hatchery.getPosition(), "allocatedMin: " + minerals + "\nnumWorkers : " + workerManager.getNumWorkers() + "\nzergs: " + troop.getSize() + 
 				"\nnumLarva: " + larvae.size() + "\nexpectedWorkers: " + workersExpected + "\nworkerCountStat: " + WORKER_AMOUNT);
 
-		
+
 		if(poolPos != null && !controller.spawnPoolExists)
 			game.drawCircleMap(poolPos.toPosition(), 10, Color.Yellow, true);
-		
+
 		workerManager.manage();
 
 		if(!controller.spawnPoolExists)
 			makeSpawnPool(minerals);
 		if(doExtractor)
 			extractorTrick(minerals);
-
 		
+		if(!controller.rushing)
+			minerals = expand(minerals);
+
+
 
 		//Initial drone building
 		if(doExtractor && !builtInitDrone && minerals >= 50)
 		{
 			Unit larva = larvae.get(0);
-			if(larva.morph(UnitType.Zerg_Drone))
-			{
-				workersExpected++;
-			}
-			
+			larva.morph(UnitType.Zerg_Drone);
+			workersExpected++;
+
 			larvae.remove(larva);
 			minerals -= 50;
-			
+
 			builtInitDrone = true;
 		}
-		
+
+		//OVERLORDS
+		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 100 && larvae.size() == 3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
+		{
+			//System.out.println("Telling somebody to build an overlord, larvae is at size " + larvae.size());
+			if(larvae.size()>0)
+			{
+				Unit larva = larvae.get(0); //get a larvae
+				larvae.remove(0); //remove from array
+				larva.morph(UnitType.Zerg_Overlord); //morph
+				minerals -= 100;
+				buildingOverlord = true;
+			}
+		}else if(self.supplyTotal() > 2)
+		{
+			buildingOverlord = false;
+		}
+
 		//build workers to get to 4?
 		while(workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT && minerals >= 50 && !larvae.isEmpty())
 		{
@@ -120,35 +140,15 @@ public class Base {
 		}
 
 		//ZERGLINGS
-		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && !larvae.isEmpty() && troop.getSize() < 16)
+		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && !larvae.isEmpty() /*&& troop.getSize() < 16*/)
 		{
-			//System.out.println("building zerg");
 			Unit larva = larvae.get(0); //get a larvae
 			larvae.remove(0); //remove from array
-			//System.out.println("removing one");
 			larva.morph(UnitType.Zerg_Zergling); //morph
 			minerals =- 50;
 		}
 
-		if((self.supplyTotal() == 2 && !buildingOverlord) || (minerals >= 100 && larvae.size()==3 && self.supplyUsed()>=self.supplyTotal()-1 && !buildingOverlord))
-		{
-			if(larvae.size()>0)
-			{
-				Unit larva = larvae.get(0); //get a larvae
-				larvae.remove(0); //remove from array
-				//System.out.println("removing one1");
-				larva.morph(UnitType.Zerg_Overlord); //morph
-				minerals -= 100;
-				buildingOverlord = true;
-			}
-		}else if(self.supplyTotal() > 2)
-		{
-			buildingOverlord = false;
-		}
-		
-		if(!controller.rushing)
-			expand(minerals);
-		
+		return minerals;
 	}
 
 	private void makeSpawnPool(int minerals)
@@ -160,8 +160,8 @@ public class Base {
 			{
 				//System.out.println("Starting to find a dude");
 				poolMorpherDrone = workerManager.getWorker();
-				
-				
+
+
 				//System.out.println("Got Worker: " + poolMorpherDrone.toString());
 				if(poolMorpherDrone != null)
 				{		
@@ -183,7 +183,8 @@ public class Base {
 				{
 					//System.out.println("trying to build");
 					poolMorpherDrone.build(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition());
-					
+					minerals -= 200;
+
 					if(self.allUnitCount(UnitType.Zerg_Spawning_Pool) > 0)
 					{
 						buildingPool = true;
@@ -203,8 +204,6 @@ public class Base {
 					//&& !poolMorpherDrone.canBuild(UnitType.Zerg_Spawning_Pool, poolMorpherDrone.getTilePosition())
 				{
 					//maybe still moving, let it keep moving to the spot we found works
-					//poolMorpherDrone.move(basePos);
-					//System.out.println(poolMorpherDrone.getTilePosition().getDistance(poolPos));
 					poolMorpherDrone.move(poolPos.toPosition());
 					//if you command it to move, it gets mad and won't obey. too many commands
 				}
@@ -239,7 +238,7 @@ public class Base {
 				makeGas();
 			}
 			minerals -= 50;
-			
+
 			gasMorphingStarted = true;
 		}
 	}
@@ -283,34 +282,26 @@ public class Base {
 			troop.addUnit(unit);
 	}
 
-	public void buildOverlord()
-	{
-		List<Unit> larvae = hatchery.getLarva();
-		if(larvae.size() > 0 && self.minerals() > 200)
-			larvae.get(0).morph(UnitType.Zerg_Overlord);
-	}
-	
-
 	public TilePosition findPoolPos()
 	{
 		boolean minLeft = false;
-		
+
 		Unit closestMineral = null;
 		int x = hatchery.getTilePosition().getX();
 		int y = hatchery.getTilePosition().getY() + 2;
-		
+
 		Unit closestGeyser = null;
-		
+
 		//loop through game's geysers, get closest to our base
 		for(Unit geyser : game.getGeysers() ){
 
-				//calculate distance, if less then is closes
-		
-				if(closestGeyser == null || closestGeyser.getDistance(hatchery.getPosition()) > geyser.getDistance(hatchery.getPosition())){
-					closestGeyser = geyser;
-				}					
+			//calculate distance, if less then is closes
+
+			if(closestGeyser == null || closestGeyser.getDistance(hatchery.getPosition()) > geyser.getDistance(hatchery.getPosition())){
+				closestGeyser = geyser;
+			}					
 		}
-		
+
 		for(Unit mineral : game.getMinerals() ){
 
 			//calculate distance, if less then is closes
@@ -318,15 +309,15 @@ public class Base {
 				closestMineral = mineral;
 			}					
 		}
-		
+
 		if(hatchery.getTilePosition().getX() > closestMineral.getTilePosition().getX())
 			//minerals are to the left
 			minLeft = true;
-			
+
 		if(minLeft)
 		{
 			x += 6;
-			
+
 			if(hatchery.getTilePosition().getX() - closestGeyser.getTilePosition().getX() < -4)
 			{
 				//geyser is in the way
@@ -344,87 +335,211 @@ public class Base {
 				x += 1;
 			}
 		}
-		
+
 		return new TilePosition(x, y);
-		
+
 	}
-	
-	private void expand(int minerals)
+
+	private int expand(int minerals)
 	{
 		if(baseTarget == null)
-			return;
-		
+			return minerals;
+
+		game.drawCircleMap(baseTarget.toPosition(), 10, Color.Green, true);
+
+		if(altTarget != null)
+			game.drawCircleMap(altTarget.toPosition(), 10, Color.Orange, true);
+
 		//get the worker
 		if((baseWorker == null || !baseWorker.exists()) && minerals > 270)
 		{
 			baseWorker = workerManager.getWorker();
 		}
 		//run to the base
-		if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 10)
+		if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 3)
 		{
 			baseWorker.move(baseTarget.toPosition());
 		}
-		
+
 		//build the base
 		else if(baseWorker != null && baseWorker.exists() && minerals >= 300 && baseWorker.canBuild(UnitType.Zerg_Hatchery))
 		{
 			baseFrames++;
-			//TODO find closest mineral, move away from, right now it just randomly twitches about
 			if(baseFrames == 50)
 			{
+				if(altTarget == null)
+					altTarget = findAltTarget();
+
 				baseFrames = 0;
-				int deltaX = RNGesus.nextInt(2);
-				int deltaY = RNGesus.nextInt(2);
-				
-				if(RNGesus.nextBoolean())
-					deltaX *= -1;
-				if(RNGesus.nextBoolean())
-					deltaY *= -1;
-				
-				
-				int x = baseTarget.getX() + deltaX;
-				int y = baseTarget.getY() + deltaY;
-				baseWorker.move(new TilePosition(x, y).toPosition());
+
+				baseWorker.move(altTarget.toPosition());
 				baseWorker.build(UnitType.Zerg_Hatchery, baseWorker.getTilePosition());
+				minerals -= 300;
 			}
 		}
 		else if(baseWorker != null && baseWorker.exists() && baseWorker.isMorphing())
 			buildingBase = true;
+		return minerals;
 	}
-	
+
+	private TilePosition findAltTarget()
+	{
+		int minLeft = 0;
+		int minRight = 0;
+		int minUp = 0;
+		int minDown = 0;
+
+		int x = baseTarget.getX();
+		int y = baseTarget.getY();
+
+		Unit closestGeyser = null;
+
+		//loop through game's geysers, get closest to our base
+		for(Unit geyser : game.getGeysers() ){
+
+			//calculate distance, if less then is closes
+
+			if(closestGeyser == null || closestGeyser.getTilePosition().getDistance(baseTarget) > geyser.getTilePosition().getDistance(baseTarget)){
+				closestGeyser = geyser;
+			}					
+		}
+
+		for(Unit mineral : game.getMinerals() ){
+
+			//determines position relative to base
+
+			if(mineral.getTilePosition().getDistance(baseTarget) > 10)
+				//irrelevant mineral
+				continue;
+
+			if(baseTarget.getX() > mineral.getTilePosition().getX())
+				//minerals are to the left
+				minLeft++;
+			else
+				minRight++;
+
+			if(baseTarget.getY() > mineral.getTilePosition().getY())
+				//minerals are above
+				minUp++;
+			else
+				minDown++;
+
+
+		}
+
+		if(minLeft > minRight) //alt need to be to the right
+		{
+			boolean moveRight = true;
+
+			//check for dominantly horizontal geyser
+			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
+					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+				if(baseTarget.getX() < closestGeyser.getTilePosition().getX()) 
+					moveRight = false; //geyser is to the right, cannot move right
+
+			if(moveRight)
+				x += 1;
+		}
+		else
+		{
+			boolean moveLeft = true;
+
+			//check for dominantly horizontal geyser
+			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
+					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+				if(baseTarget.getX() > closestGeyser.getTilePosition().getX()) 
+					moveLeft = false; //geyser is to the left, cannot move left
+
+			if(moveLeft)
+				x -= 1;
+		}
+
+		if(minUp > minDown) //alt need to be to down
+		{
+			boolean moveDown = true;
+
+			//check for dominantly horizontal geyser
+			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
+					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+				if(baseTarget.getY() < closestGeyser.getTilePosition().getY()) 
+					moveDown = false; //geyser is to the down, cannot move down
+
+			if(moveDown)
+				y += 1;			
+		}
+		else
+		{
+			boolean moveUp = true;
+
+			//check for dominantly horizontal geyser
+			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
+					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+				if(baseTarget.getY() > closestGeyser.getTilePosition().getY()) 
+					moveUp = false; //geyser is to the up, cannot move up
+
+			if(moveUp)
+				y -= 1;		
+		}
+		return new TilePosition(x, y);
+	}
+
 	public static void setWorkerAmount(int amt)
 	{
 		WORKER_AMOUNT = amt;
 	}
-	
+
 	public Unit getWorker()
 	{
 		return workerManager.getWorker();
 	}
-	
+
 	public void decrementWorkers(){
 		workersExpected--;
 	}
-	
+
 	public Unit getHatchery()
 	{
 		return hatchery;
 	}
-	
+
 	public TilePosition getTarget()
 	{
 		return baseTarget;
 	}
-	
+
 	public void setTarget(TilePosition pos)
 	{
 		baseTarget = pos;
 	}
-	
+
 	public void nullify()
 	{
 		baseWorker = null;
 		baseTarget = null;
+		altTarget = null;
 		buildingBase = false;
+	}
+
+	public boolean expandable()
+	{
+		if(workerManager.getNumWorkers() >= WORKER_AMOUNT)
+			return true;
+		return false;
+	}
+	
+	public List<Unit> getWorkers()
+	{
+		return workerManager.getWorkerList();
+	}
+	
+	public void inheritWorkers(List<Unit> workers)
+	{
+		for(Unit worker : workers)
+			workerManager.addWorker(worker);
+	}
+	
+	public boolean exists()
+	{
+		return hatchery.exists();
 	}
 }

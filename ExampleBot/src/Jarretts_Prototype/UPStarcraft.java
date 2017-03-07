@@ -1,11 +1,19 @@
 package Jarretts_Prototype;
 
+import static Jarretts_Prototype.ReverseOrder.reversed;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import bwapi.*;
+import bwapi.DefaultBWListener;
+import bwapi.Game;
+import bwapi.Mirror;
+import bwapi.Player;
+import bwapi.Position;
+import bwapi.TilePosition;
+import bwapi.Unit;
+import bwapi.UnitType;
 import bwta.BWTA;
-import bwta.BaseLocation;
 
 public class UPStarcraft extends DefaultBWListener{
 	private Mirror mirror = new Mirror();
@@ -17,17 +25,23 @@ public class UPStarcraft extends DefaultBWListener{
 	public boolean cheesed;
 
 	private List<Base> baseList;
+	private List<Base> basesToRemove;
 	private List<Unit> basesMade; //used for sorting
 	private Army army;
 	private boolean init;
 	
 	public boolean rushing;
 	public boolean zergDeath;
+
+	private int expectedBases;
 	private int zergsKilled;
 	private int enemiesSeen;
 	private int enemiesKilled;
 	private List<Unit> enemiesWitnessed;
 	private List<TilePosition> basePositions;
+	private List<TilePosition> enemyBuiltPositions;
+	
+	private boolean notCapped;
 	
 	public Position enemyBase;
 	
@@ -36,8 +50,8 @@ public class UPStarcraft extends DefaultBWListener{
 	//Static frame limit for how long we rush, most useful for 4-base maps
 	//Dummied right now
 	private final double RUSH_FAIL_HEURISTIC = 1;
-	
-	private final int SPEED = 5;
+	private final int AMT_BASES = Integer.MAX_VALUE;
+	private final int SPEED = 20;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -51,6 +65,8 @@ public class UPStarcraft extends DefaultBWListener{
 	@Override
 	public void onStart() {
 		frames = 0;
+		notCapped = true;
+		expectedBases = 0;
 		init = true;
 		enemyBase = null;
 		rushing = true;
@@ -73,11 +89,12 @@ public class UPStarcraft extends DefaultBWListener{
 		{
 			basePositions.add(pos.toTilePosition());
 		}
-		//System.out.println("DOES THIS WORK");
+		enemyBuiltPositions = new ArrayList<TilePosition>();
 
 		System.out.println("Map name is " + game.mapFileName());
 		baseList = new ArrayList<Base>();
 		basesMade = new ArrayList<Unit>();
+		basesToRemove = new ArrayList<Base>();
 		List<Unit> myUnits = self.getUnits();
 		Base initBase = null;
 		spawnPoolExists = false;
@@ -112,23 +129,46 @@ public class UPStarcraft extends DefaultBWListener{
 		
 		frames++;
 		
-		if(frames > 2000)
+		if(frames > 90000)
 		{
 			rushing = false;
-			Base.setWorkerAmount(10);
+			Base.setWorkerAmount(5);
+		}
+		
+		if(self.supplyUsed() == 400 && notCapped)
+		{
+			System.out.println("Reached cap at frames " + frames);
+			notCapped = false;
 		}
 
 		try{
 			army.manage();
 			
-			if(!rushing)
+			if(!rushing && expectedBases + baseList.size() < AMT_BASES)
 				assignBases();
-			
-			int allocatedMinerals = self.minerals()/baseList.size();
-			
-			for(Base base: baseList)
-				base.manage(allocatedMinerals);
-		
+
+			int allocatedMinerals = self.minerals();
+
+			//Remove enemy bases from our list of places
+			removeEnemyBases();
+
+			//Each manage function returns the minerals it did not use for the next to use
+			for(Base base : reversed(baseList))
+				if(base.exists())
+					allocatedMinerals = base.manage(allocatedMinerals);
+				else
+					basesToRemove.add(base);
+
+			for(Base base : basesToRemove)
+			{
+				if(baseList.size() > 1)
+				{
+					basesMade.remove(base.getHatchery());
+					baseList.get(basesMade.indexOf(findClosest(basesMade, base.getHatchery()))).inheritWorkers(base.getWorkers());
+					baseList.remove(base);
+				}
+			}
+
 
 		if(init) init = false; //should mean no duplicates in first frame are done
 		if(rushing)
@@ -143,23 +183,27 @@ public class UPStarcraft extends DefaultBWListener{
 
 	@Override
 	public void onUnitCreate(Unit unit) {
+		//only care about my stuff
+		boolean mine = unit.getPlayer() == self;
+		
 		if(init)
 			; //Need to set up initial data structures
-		else if(unit.getType() == UnitType.Zerg_Extractor)//called even when morphing not done yet
+		else if(unit.getType() == UnitType.Zerg_Extractor && mine)//called even when morphing not done yet
 		{ 
 			//gasMorphing = true; //set flag to check cancel conditions
 			//gasMorpher = unit;
 		}
-		else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
+		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && mine)
 		{
 			//buildingPool = true;
 		}
-		else if (unit.getType() == UnitType.Zerg_Drone ||
-				unit.getType() == UnitType.Zerg_Zergling) 
+		else if ((unit.getType() == UnitType.Zerg_Drone ||
+				unit.getType() == UnitType.Zerg_Zergling) && mine)
 		{
 			baseList.get(basesMade.indexOf(findClosest(basesMade, unit))).addUnit(unit);
+			
 		} 
-		else if(unit.getType() == UnitType.Zerg_Overlord)
+		else if(unit.getType() == UnitType.Zerg_Overlord && mine)
 		{
 			army.addScout(unit);
 		}
@@ -167,23 +211,26 @@ public class UPStarcraft extends DefaultBWListener{
 
 	@Override
 	public void onUnitMorph(Unit unit){
+		//only care about my stuff
+		boolean mine = unit.getPlayer() == self;
+		
 		if(init)
 			; //Need to set up initial data structures
-		else if(unit.getType() == UnitType.Zerg_Extractor)//called even when morphing not done yet
+		else if(unit.getType() == UnitType.Zerg_Extractor && mine)//called even when morphing not done yet
 		{ 
 			gasMorphing = true; //set flag to check cancel conditions
 			baseList.get(0).gasMorpher = unit;
 		}
-		else if(unit.getType() == UnitType.Zerg_Spawning_Pool)
+		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && mine)
 		{
 			//buildingPool = true;
 		}
-		else if (unit.getType() == UnitType.Zerg_Drone ||
-				unit.getType() == UnitType.Zerg_Zergling) 
+		else if ((unit.getType() == UnitType.Zerg_Drone ||
+				unit.getType() == UnitType.Zerg_Zergling) && mine) 
 		{
 			baseList.get(basesMade.indexOf(findClosest(basesMade, unit))).addUnit(unit);
 		} 
-		else if(unit.getType() == UnitType.Zerg_Overlord)
+		else if(unit.getType() == UnitType.Zerg_Overlord && mine)
 		{
 			army.addScout(unit);
 		}
@@ -218,8 +265,10 @@ public class UPStarcraft extends DefaultBWListener{
 			Base b = new Base(this, self, game, unit, false);
 			baseList.add(b);
 			basesMade.add(unit);
+			expectedBases--;
 		}
 	}
+	
 	@Override
 	public void onUnitDestroy(Unit unit){
 		if(unit.getPlayer() == game.enemy())
@@ -334,14 +383,23 @@ public class UPStarcraft extends DefaultBWListener{
 	{
 		for(Base base : baseList)
 		{
-			if(base.getTarget() == null)
+			if(base.getTarget() == null && base.expandable())
 			{
 				TilePosition basePos = findClosestPosition(basePositions, base.getHatchery());
 				if(basePos != null)
 				{
 					base.setTarget(basePos);
 					basePositions.remove(basePos);
+					expectedBases++;
 				}
+				
+				if(expectedBases + baseList.size() >= AMT_BASES)
+					return;
+			}
+			else if(enemyBuiltPositions.contains(base.getTarget()))
+			{
+				base.nullify();
+				expectedBases--;
 			}
 		}
 	}
@@ -355,6 +413,16 @@ public class UPStarcraft extends DefaultBWListener{
 				return worker;
 		}
 		return null;
+	}
+	
+	private void removeEnemyBases()
+	{
+		for(Unit enemy : game.enemy().getUnits())
+			if(basePositions.contains(enemy.getTilePosition()))
+			{
+				basePositions.remove(enemy.getTilePosition());
+				enemyBuiltPositions.add(enemy.getTilePosition());
+			}
 	}
 }
 
