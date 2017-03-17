@@ -19,21 +19,32 @@ public class Troop {
 	private Object attackTarget;
 	private Game game;
 	private UPStarcraft controller;
+	private Position myBasePos;
 	
 	private Position meanPos;
 	private double unity;
 	
-	public Troop(Game game){
+	public Troop(Game game, Position p){
 		this.game = game;
+		myBasePos = p;
 		units = new ArrayList<Unit>();
 		reserves = new ArrayList<Unit>();
+	}
+	
+	public void recall(){
+		for(Unit z : units){
+			z.move(myBasePos);
+		}
+		for(Unit r : reserves){
+			r.move(myBasePos);
+		}
+		
 	}
 	
 	public int getSize()
 	{
 		return units.size() + reserves.size();
 	}
-	
 	
 	public void manage()
 	{

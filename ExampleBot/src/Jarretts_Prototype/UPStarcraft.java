@@ -27,9 +27,11 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<Base> baseList;
 	private List<Base> basesToRemove;
 	private List<Unit> basesMade; //used for sorting
+	
 	private Army army;
 	private boolean init;
-	
+	private int nextBaseID;
+
 	public boolean rushing;
 	public boolean zergDeath;
 
@@ -40,18 +42,20 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<Unit> enemiesWitnessed;
 	private List<TilePosition> basePositions;
 	private List<TilePosition> enemyBuiltPositions;
-	
+
 	private boolean notCapped;
-	
+
 	public Position enemyBase;
-	
+
 	int frames;
-	
+
 	//Static frame limit for how long we rush, most useful for 4-base maps
 	//Dummied right now
 	private final double RUSH_FAIL_HEURISTIC = 1;
 	private final int AMT_BASES = Integer.MAX_VALUE;
 	private final int SPEED = 20;
+	private final int DEFENDERS_PER_BASE = 12;
+	private final int EXPAND_WORKER_COUNT = 10;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -67,6 +71,7 @@ public class UPStarcraft extends DefaultBWListener{
 		frames = 0;
 		notCapped = true;
 		expectedBases = 0;
+		nextBaseID = 0;
 		init = true;
 		enemyBase = null;
 		rushing = true;
@@ -83,7 +88,7 @@ public class UPStarcraft extends DefaultBWListener{
 		game.setLocalSpeed(SPEED);
 
 		army = new Army(self, game, this);
-		
+
 		basePositions = new ArrayList<TilePosition>();
 		for(Position pos : army.basePoss)
 		{
@@ -105,8 +110,9 @@ public class UPStarcraft extends DefaultBWListener{
 		for(Unit u : myUnits)
 			if(u.getType() == UnitType.Zerg_Hatchery)
 			{
-				initBase = new Base(this, self, game, u, true);
+				initBase = new Base(this, self, game, u, true, nextBaseID);
 				basesMade.add(u);
+				nextBaseID++;
 				break;
 			}
 
@@ -126,15 +132,15 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onFrame() {
 		if(game.isPaused())
 			return;
-		
+
 		frames++;
-		
-		if(frames > 90000)
+
+		if(frames > 100)//90000)
 		{
 			rushing = false;
-			Base.setWorkerAmount(5);
+			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
 		}
-		
+
 		if(self.supplyUsed() == 400 && notCapped)
 		{
 			System.out.println("Reached cap at frames " + frames);
@@ -143,7 +149,7 @@ public class UPStarcraft extends DefaultBWListener{
 
 		try{
 			army.manage();
-			
+
 			if(!rushing && expectedBases + baseList.size() < AMT_BASES)
 				assignBases();
 
@@ -151,13 +157,15 @@ public class UPStarcraft extends DefaultBWListener{
 
 			//Remove enemy bases from our list of places
 			removeEnemyBases();
-
+			
 			//Each manage function returns the minerals it did not use for the next to use
 			for(Base base : reversed(baseList))
+			{
 				if(base.exists())
 					allocatedMinerals = base.manage(allocatedMinerals);
 				else
 					basesToRemove.add(base);
+			}
 
 			for(Base base : basesToRemove)
 			{
@@ -170,10 +178,10 @@ public class UPStarcraft extends DefaultBWListener{
 			}
 
 
-		if(init) init = false; //should mean no duplicates in first frame are done
-		if(rushing)
-			rushing = calculateRush();
-		
+			if(init) init = false; //should mean no duplicates in first frame are done
+			if(rushing)
+				rushing = calculateRush();
+
 		}
 		catch(Exception e)
 		{
@@ -181,11 +189,24 @@ public class UPStarcraft extends DefaultBWListener{
 		}
 	}
 
+	public int getSupplyUsed(){
+		return self.supplyUsed();
+	}
+
+	public Unit getClosestBase(TilePosition tp){
+		Unit ret = null;
+		for(Unit b : basesMade){
+			if(ret == null || ret.getTilePosition().getDistance(tp) > b.getTilePosition().getDistance(tp))
+				ret = b;
+		}
+		return ret;
+	}
+
 	@Override
 	public void onUnitCreate(Unit unit) {
 		//only care about my stuff
 		boolean mine = unit.getPlayer() == self;
-		
+
 		if(init)
 			; //Need to set up initial data structures
 		else if(unit.getType() == UnitType.Zerg_Extractor && mine)//called even when morphing not done yet
@@ -201,7 +222,7 @@ public class UPStarcraft extends DefaultBWListener{
 				unit.getType() == UnitType.Zerg_Zergling) && mine)
 		{
 			baseList.get(basesMade.indexOf(findClosest(basesMade, unit))).addUnit(unit);
-			
+
 		} 
 		else if(unit.getType() == UnitType.Zerg_Overlord && mine)
 		{
@@ -213,7 +234,7 @@ public class UPStarcraft extends DefaultBWListener{
 	public void onUnitMorph(Unit unit){
 		//only care about my stuff
 		boolean mine = unit.getPlayer() == self;
-		
+
 		if(init)
 			; //Need to set up initial data structures
 		else if(unit.getType() == UnitType.Zerg_Extractor && mine)//called even when morphing not done yet
@@ -233,6 +254,12 @@ public class UPStarcraft extends DefaultBWListener{
 		else if(unit.getType() == UnitType.Zerg_Overlord && mine)
 		{
 			army.addScout(unit);
+		}
+		else if(unit.getType() == UnitType.Zerg_Egg && mine)
+		{
+			if(unit.getBuildType() == UnitType.Zerg_Overlord);
+						
+			baseList.get(basesMade.indexOf(findClosest(basesMade, unit))).addEgg(unit);
 		}
 	}
 
@@ -262,13 +289,14 @@ public class UPStarcraft extends DefaultBWListener{
 						break;
 					}
 			}
-			Base b = new Base(this, self, game, unit, false);
+			Base b = new Base(this, self, game, unit, false, nextBaseID);
 			baseList.add(b);
 			basesMade.add(unit);
 			expectedBases--;
+			nextBaseID++;
 		}
 	}
-	
+
 	@Override
 	public void onUnitDestroy(Unit unit){
 		if(unit.getPlayer() == game.enemy())
@@ -290,18 +318,18 @@ public class UPStarcraft extends DefaultBWListener{
 			spawnPoolExists = false;
 	}
 
-	
-	
+
+
 	private int games = 0;
 	private int wins = 0;
 	@Override
-    public void onEnd(boolean isWinner)
-    {
+	public void onEnd(boolean isWinner)
+	{
 		games++;
-    	if(isWinner) wins++;
-    	else System.out.println("We lost this one.");
-    	System.out.println("Game ended: " + wins + "/" + games);
-    }
+		if(isWinner) wins++;
+		else System.out.println("We lost this one.");
+		System.out.println("Game ended: " + wins + "/" + games);
+	}
 
 	public void newTroop(Troop troop)
 	{
@@ -323,7 +351,7 @@ public class UPStarcraft extends DefaultBWListener{
 		}
 		return returnUnit;
 	}
-	
+
 	private static TilePosition findClosestPosition(List<TilePosition> list, Unit u)
 	{
 		TilePosition returnPos = null;
@@ -344,7 +372,7 @@ public class UPStarcraft extends DefaultBWListener{
 		List<Unit> enemies = game.enemy().getUnits();
 
 		//System.out.println("Num enemies visible is " + game.enemy().visibleUnitCount() + " and our seen counter is " + enemiesSeen+ " and we killed " + enemiesKilled);
-		
+
 		if(!enemies.isEmpty() && game.enemy().visibleUnitCount() != 0)
 		{
 			for(Unit enemy : enemies)
@@ -358,52 +386,59 @@ public class UPStarcraft extends DefaultBWListener{
 		else if(enemiesSeen != 0 && zergDeath && zergsKilled > 0)//enemies is empty cause we see none; initial push failed
 		{
 			double killRatio = ((double) enemiesKilled) / ((double) zergsKilled);
-			
+
 			if(killRatio < RUSH_FAIL_HEURISTIC)
 			{
 				System.out.println("THE RUSH HAS FAILED");
 				System.out.println("The KD ratio is " + killRatio);
-				baseList.get(0).setWorkerAmount(6);
+				baseList.get(0).setWorkerAmount(EXPAND_WORKER_COUNT);
 				baseList.get(0).decrementWorkers();
 				return false;
 			}
-			
+
 			if(game.enemy().visibleUnitCount() == 0)
 			{
 				enemiesKilled = 0;
 				zergsKilled = 0;
 			}
 		}
-		
+
 		return true; //haven't seen enemies yet
 	}
-	
-	
+
+
 	private void assignBases()
 	{
-		for(Base base : baseList)
+		boolean expand = true;
+		for(Base base : baseList){
+			if(!base.expandable())
+				expand = false;
+		}
+
+		Base base = baseList.get(baseList.size()-1);
+
+//		System.out.println("Army size: " + army.size());
+//		System.out.println("Base size: " + baseList.size());
+		if(base.getTarget() == null && expand && army.size() >= baseList.size()*DEFENDERS_PER_BASE)
 		{
-			if(base.getTarget() == null && base.expandable())
+			TilePosition basePos = findClosestPosition(basePositions, base.getHatchery());
+			if(basePos != null)
 			{
-				TilePosition basePos = findClosestPosition(basePositions, base.getHatchery());
-				if(basePos != null)
-				{
-					base.setTarget(basePos);
-					basePositions.remove(basePos);
-					expectedBases++;
-				}
-				
-				if(expectedBases + baseList.size() >= AMT_BASES)
-					return;
+				base.setTarget(basePos);
+				basePositions.remove(basePos);
+				expectedBases++;
 			}
-			else if(enemyBuiltPositions.contains(base.getTarget()))
-			{
-				base.nullify();
-				expectedBases--;
-			}
+
+			if(expectedBases + baseList.size() >= AMT_BASES)
+				return;
+		}
+		else if(enemyBuiltPositions.contains(base.getTarget()))
+		{
+			base.nullify();
+			expectedBases--;
 		}
 	}
-	
+
 	public Unit getWorker()
 	{
 		for(Base b : baseList)
@@ -414,7 +449,7 @@ public class UPStarcraft extends DefaultBWListener{
 		}
 		return null;
 	}
-	
+
 	private void removeEnemyBases()
 	{
 		for(Unit enemy : game.enemy().getUnits())

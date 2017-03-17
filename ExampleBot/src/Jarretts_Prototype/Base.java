@@ -1,5 +1,6 @@
 package Jarretts_Prototype;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -39,17 +40,24 @@ public class Base {
 	private int baseFrames;
 	private boolean buildingBase;
 	private boolean builtInitDrone;
+	private int baseID;
+	
+	private List<Unit> eggs;	//eggs being morphed by base
+	private List<Unit> orderedLarvae; //larvae that have been ordered
 
 	private Random RNGesus;
 
 	private static int WORKER_AMOUNT = 4;
 
-	public Base(UPStarcraft controller, Player self, Game game, Unit hatchery, boolean doExtractor){
+	public Base(UPStarcraft controller, Player self, Game game, Unit hatchery, boolean doExtractor, int baseID){
 		this.controller = controller;
 		this.hatchery = hatchery;
 		this.self = self;
 		this.game = game;
 		this.doExtractor = doExtractor;
+		this.baseID = baseID;
+		eggs = new ArrayList<Unit>();
+		orderedLarvae = new ArrayList<Unit>();
 		builtInitDrone = false;
 		RNGesus = new Random();
 		buildingBase = false;
@@ -59,7 +67,7 @@ public class Base {
 		frames = 0;
 		buildingOverlord = false;
 		workerManager = new WorkerManager(self, game, doExtractor);
-		troop = new Troop(game);
+		troop = new Troop(game, hatchery.getPosition());
 		controller.newTroop(troop);
 
 		//This is set to account for the starting drones we get
@@ -75,10 +83,34 @@ public class Base {
 
 	public int manage(int minerals)
 	{	
+		workersExpected = 0;
+		boolean overlordEgg = false;
+		buildingOverlord = false;
+		List<Unit> badEggs = new ArrayList<Unit>();
+		
+		for(Unit egg : eggs)
+			if(egg.getType() != UnitType.Zerg_Egg)
+				badEggs.add(egg);
+			else if(egg.getBuildType() == UnitType.Zerg_Drone)
+				workersExpected++;
+			else if(egg.getBuildType() == UnitType.Zerg_Overlord) 
+			{
+				overlordEgg = true;
+				buildingOverlord = true;
+			}
+			
+		eggs.removeAll(badEggs);
+			
+		
 		List<Unit> larvae = hatchery.getLarva();
+		
+//		//check for ordered larvae
+//		for(Unit used : orderedLarvae)
+//			if(larvae.contains(used))
+//				larvae.remove(used);
 
 		game.drawTextMap(hatchery.getPosition(), "allocatedMin: " + minerals + "\nnumWorkers : " + workerManager.getNumWorkers() + "\nzergs: " + troop.getSize() + 
-				"\nnumLarva: " + larvae.size() + "\nexpectedWorkers: " + workersExpected + "\nworkerCountStat: " + WORKER_AMOUNT);
+				"\nnumLarva: " + larvae.size() + "\nexpectedWorkers: " + workersExpected + "\nworkerCountStat: " + WORKER_AMOUNT + "\nEggs: " + eggs.size());
 
 
 		if(poolPos != null && !controller.spawnPoolExists)
@@ -100,7 +132,8 @@ public class Base {
 		if(doExtractor && !builtInitDrone && minerals >= 50)
 		{
 			Unit larva = larvae.get(0);
-			larva.morph(UnitType.Zerg_Drone);
+			if(larva.morph(UnitType.Zerg_Drone))
+				orderedLarvae.add(larva); //morph and add to list if successful
 			workersExpected++;
 
 			larvae.remove(larva);
@@ -116,35 +149,36 @@ public class Base {
 			if(larvae.size()>0)
 			{
 				Unit larva = larvae.get(0); //get a larvae
+				if(larva.morph(UnitType.Zerg_Overlord))
+					orderedLarvae.add(larva); //morph and add to list if successful
+				System.out.println("Tried to morph overlord at base " + baseID);
 				larvae.remove(0); //remove from array
-				larva.morph(UnitType.Zerg_Overlord); //morph
 				minerals -= 100;
 				buildingOverlord = true;
 			}
-		}else if(self.supplyTotal() > 2)
-		{
-			buildingOverlord = false;
 		}
+		//else if ()
 
+		int i = 0;
 		//build workers to get to 4?
-		while(workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT && minerals >= 50 && !larvae.isEmpty())
+		while(workerManager.getNumWorkers() + workersExpected < WORKER_AMOUNT && minerals  >= 50 && !larvae.isEmpty() && self.supplyUsed() < self.supplyTotal()-1)
 		{
 			//System.out.println("Called to morph another larvae, list length is at " + workerManager.getNumWorkers() + " and expected is " + workersExpected);
-			Unit larva = larvae.get(0);
-			if(larva.morph(UnitType.Zerg_Drone))
-			{
-				workersExpected++;
-			}
+			Unit larva = larvae.get(i);
+			i++;
+			larva.morph(UnitType.Zerg_Drone);
+			workersExpected++;
 			larvae.remove(larva);
-			minerals -= 50;
+			minerals =- 50;
+			System.out.println("Tried to morph worker, base " + baseID);
 		}
 
 		//ZERGLINGS
-		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && !larvae.isEmpty() /*&& troop.getSize() < 16*/)
+		while(controller.spawnPoolExists && minerals >= 50 && self.supplyUsed() <= self.supplyTotal()-2 && !larvae.isEmpty() && self.supplyUsed() < self.supplyTotal()-1/*&& troop.getSize() < 16*/)
 		{
 			Unit larva = larvae.get(0); //get a larvae
 			larvae.remove(0); //remove from array
-			larva.morph(UnitType.Zerg_Zergling); //morph
+			larva.morph(UnitType.Zerg_Zergling);
 			minerals =- 50;
 		}
 
@@ -246,7 +280,6 @@ public class Base {
 	private void makeGas()
 	{
 		Unit builder = workerManager.getWorker();
-		workersExpected++;
 		// make sure the builder is not null
 		if(builder != null)
 		{	
@@ -267,7 +300,8 @@ public class Base {
 
 			builder.build(UnitType.Zerg_Extractor, closestGeyser.getTilePosition());
 			gasMorphingStarted = true;
-			//System.out.println("Sent the builder?");
+			workersExpected++;
+			System.out.println("Sent the builder?");
 		}
 	}
 
@@ -541,5 +575,10 @@ public class Base {
 	public boolean exists()
 	{
 		return hatchery.exists();
+	}
+	
+	public void addEgg(Unit egg)
+	{
+		eggs.add(egg);
 	}
 }

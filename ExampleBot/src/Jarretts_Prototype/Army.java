@@ -18,7 +18,7 @@ import bwta.BaseLocation;
 
 public class Army {
 
-	private List<Troop> army;
+	private List<Troop> troops;
 	private Player self;
 	private Game game;
 	private UPStarcraft controller;
@@ -54,7 +54,7 @@ public class Army {
 	private int scoutDist;
 
 	public Army(Player self, Game game, UPStarcraft controller){
-		army = new ArrayList<Troop>();
+		troops = new ArrayList<Troop>();
 		this.self = self;
 		this.game = game;
 		this.controller = controller;
@@ -89,14 +89,65 @@ public class Army {
 	public void manage()
 	{
 		scoutOverlord();
-		
-		if(!controller.rushing)
-			return;
-		
 		getSeenEnemies();
-		for(int q = 0; q < army.size(); q++)
+		
+		if(controller.rushing){
+			attack();
+		}
+		else{
+			if(underAttack())
+			{
+				defend();
+			}
+			else if(controller.getSupplyUsed()>=398){
+				attack();
+			}
+			else{
+				// evenly disperse?
+				// centralized army?
+				// one pool?
+				// mix?
+				manageUnits();
+			}
+		}
+		
+
+		//Clear the list each time as garbage will occur otherwise
+		enemyProblems.clear();
+		enemyWorkers.clear();
+		enemyCores.clear();
+		enemyBlds.clear();
+		
+	}
+	
+	private void manageUnits(){
+		for(Troop t : troops){
+			t.recall();
+		}
+		return;
+	}
+	
+	private boolean underAttack(){
+		if(!enemyProblems.isEmpty() || !enemyWorkers.isEmpty()){
+			for(Unit e : enemyProblems){
+				if(controller.getClosestBase(e.getTilePosition()).getTilePosition().getDistance(e.getTilePosition()) < 20){
+					return true;
+				}
+			}
+			for(Unit e : enemyWorkers){
+				if(controller.getClosestBase(e.getTilePosition()).getTilePosition().getDistance(e.getTilePosition()) < 20){
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	private void attack()
+	{
+		for(int q = 0; q < troops.size(); q++)
 		{
-			Troop t = army.get(q);
+			Troop t = troops.get(q);
 			if(t.units.size() > 0)
 			{
 				Object target = null;
@@ -140,11 +191,6 @@ public class Army {
 								break;
 							}
 					}
-//					//TODO sample unity values, determine if this is even good or needed
-//					else if(t.getUnity() < 0)
-//					{
-//						target = t.getMeanPos();
-//					}
 					else
 					{
 						if(game.isVisible(enemyBase.toTilePosition()))
@@ -330,14 +376,11 @@ public class Army {
 			}
 			t.manage();
 		}
-
-
-
-		//Clear the list each time as garbage will occur otherwise
-		enemyProblems.clear();
-		enemyWorkers.clear();
-		enemyCores.clear();
-		enemyBlds.clear();
+	}
+	
+	private void defend(){
+		attack();
+		return;
 	}
 
 	private void getSeenEnemies()
@@ -508,19 +551,19 @@ public class Army {
 
 	public void move(Position p)
 	{
-		for(Troop troop : army)
+		for(Troop troop : troops)
 			troop.move(p);
 	}
 
 	public void attackMove(Position p)
 	{
-		for(Troop troop : army)
+		for(Troop troop : troops)
 			troop.attackMove(p);
 	}
 
 	public void addTroop(Troop troop)
 	{
-		army.add(troop);
+		troops.add(troop);
 		//lastTargets.put(troop, null);
 		frameCounts.put(troop, 0);
 	}
@@ -533,8 +576,8 @@ public class Army {
 	public int size()
 	{
 		int size = 0;
-		for(Troop t : army)
-			size += t.units.size();
+		for(Troop t : troops)
+			size += t.getSize();
 		return size;
 	}
 
