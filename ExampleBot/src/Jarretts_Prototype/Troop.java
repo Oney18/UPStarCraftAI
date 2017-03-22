@@ -32,11 +32,13 @@ public class Troop {
 	}
 	
 	public void recall(){
-		for(Unit z : units){
-			z.move(myBasePos);
-		}
+//		for(Unit z : units){
+//			if(z.getTilePosition().getDistance(myBasePos.toTilePosition()) > 40)
+//				z.move(myBasePos);
+//		}
 		for(Unit r : reserves){
-			r.move(myBasePos);
+			if(r.getTilePosition().getDistance(myBasePos.toTilePosition()) > 40)
+				r.move(myBasePos);
 		}
 		
 	}
@@ -48,11 +50,13 @@ public class Troop {
 	
 	public void manage()
 	{
-		if(reserves.size() > 5  || !controller.zergDeath)
-		{
-			units.addAll(reserves);
-			reserves.clear();
-		}
+		if(controller.rushing)
+			if(reserves.size() > 5  || !controller.zergDeath)
+				pullReserves();
+		
+		recall();
+		
+		
 		
 		if(units.size() > 0){ //rush with 6
 			doStatistics();
@@ -172,5 +176,11 @@ public class Troop {
 	public void setController(UPStarcraft c)
 	{
 		controller = c;
+	}
+	
+	public void pullReserves()
+	{
+		units.addAll(reserves);
+		reserves.clear();
 	}
 }

@@ -33,6 +33,7 @@ public class Army {
 	private List<Unit> enemyCores;
 	private List<Unit> enemyProblems;
 	public boolean killedBase;
+	public boolean seenBase;
 	
 	private List<Unit> trolls;
 	private Hashtable<Troop, Unit> lastTargets;
@@ -52,6 +53,8 @@ public class Army {
 	private int frames;
 	private int scoutCounter;
 	private int scoutDist;
+	
+	private final int END_RUSH_AMOUNT_PER_BASE = 20;
 
 	public Army(Player self, Game game, UPStarcraft controller){
 		troops = new ArrayList<Troop>();
@@ -77,6 +80,7 @@ public class Army {
 		enemyBase = null;
 		enemyBaseUnit = null;
 		killedBase = false;
+		seenBase = false;
 		nextBasePosition = null;
 		FillStartPositions();
 		FillBasePositions();
@@ -95,20 +99,23 @@ public class Army {
 			attack();
 		}
 		else{
-			if(underAttack())
+			if(underAttack() || size() >= END_RUSH_AMOUNT_PER_BASE * controller.getNumBases() || controller.getSupplyUsed()>=398)
 			{
-				defend();
+				for(Troop t : troops)
+					t.pullReserves();
+				
+				//defend(); does same thing?
+				
 			}
-			else if(controller.getSupplyUsed()>=398){
-				attack();
-			}
-			else{
-				// evenly disperse?
-				// centralized army?
-				// one pool?
-				// mix?
-				manageUnits();
-			}
+//			else{
+//				// evenly disperse?
+//				// centralized army?
+//				// one pool?
+//				// mix?
+//				manageUnits();
+//			}
+			attack(); 	//calls a recall in the troop class now on the reserve units
+						//Used to force a "rush", else units stuck in the middle
 		}
 		
 
@@ -152,22 +159,23 @@ public class Army {
 			{
 				Object target = null;
 				
+				Position zergSpot = t.getMeanPos();
+				
 				if(!enemyProblems.isEmpty()) //target closest threat
-					target = findClosest(enemyProblems, t.units.get(0));
+					target = findClosest(enemyProblems, zergSpot);
 				
 				else if(!enemyWorkers.isEmpty()) //else target closest worker, 
-					target = findClosest(enemyWorkers, t.units.get(0));
+					target = findClosest(enemyWorkers, zergSpot);
 
 				else if(!enemyCores.isEmpty()) //else target core,
-					target = findClosest(enemyCores, t.units.get(0));	
+					target = findClosest(enemyCores, zergSpot);	
 				
 				else if(!enemyBlds.isEmpty()) //else target buildings.
-					target = findClosest(enemyBlds, t.units.get(0));	
+					target = findClosest(enemyBlds, zergSpot);	
 				
 				
 				else if(target == null && !killedBase)
 				{
-					Position zergSpot = t.getMeanPos();
 					if(enemyBase == null && getUnchecked() == 1)
 					{
 						for(int i=0; i<startPoss.size(); i++)
@@ -181,19 +189,24 @@ public class Army {
 					}
 					if(enemyBase == null)
 					{
-						if(startPoss.contains(zergSpot))
-							startChecked[startPoss.indexOf(zergSpot)] = true;
+						
 						for(int i = startPoss.size() - 1; i > -1; i--)
+						{
+							
 							if(!startChecked[i])
 							{
+								if(game.isVisible(startPoss.get(i).toTilePosition()) && enemyCores.isEmpty())
+									startChecked[i] = true;
+								
 								//System.out.println("move order");
 								target = startPoss.get(i);
 								break;
 							}
+						}
 					}
 					else
-					{
-						if(game.isVisible(enemyBase.toTilePosition()))
+					{			
+						if(game.isVisible(enemyBase.toTilePosition()) && seenBase)
 						{
 							System.out.println("Enemy base dead?");
 							killedBase = true;
@@ -412,6 +425,7 @@ public class Army {
 						if(enemyBase == null && startPoss.contains(unit.getPosition()))
 						{
 							System.out.println("Set enemy base (seen)");
+							seenBase = true;
 							enemyBase = unit.getPosition();
 							enemyBaseUnit = unit;
 							controller.enemyBase = unit.getPosition();
@@ -420,6 +434,7 @@ public class Army {
 						if(enemyBaseUnit == null && startPoss.contains(unit.getPosition()))
 						{
 							System.out.println("Set enemy unit (seen)");
+							seenBase = true;
 							enemyBaseUnit = unit;
 							controller.enemyBase = unit.getPosition();
 						}
@@ -532,6 +547,21 @@ public class Army {
 			if(unit.getPosition().getApproxDistance(u.getPosition()) < distance)
 			{
 				distance = unit.getPosition().getApproxDistance(u.getPosition());
+				returnUnit = unit;
+			}
+		}
+		return returnUnit;
+	}
+	
+	public static Unit findClosest(List<Unit> list, Position p)
+	{
+		Unit returnUnit = null;
+		int distance = Integer.MAX_VALUE;
+		for(Unit unit : list)
+		{
+			if(unit.getPosition().getApproxDistance(p) < distance)
+			{
+				distance = unit.getPosition().getApproxDistance(p);
 				returnUnit = unit;
 			}
 		}

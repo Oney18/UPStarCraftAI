@@ -27,7 +27,7 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<Base> baseList;
 	private List<Base> basesToRemove;
 	private List<Unit> basesMade; //used for sorting
-	
+
 	private Army army;
 	private boolean init;
 	private int nextBaseID;
@@ -43,7 +43,7 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<TilePosition> basePositions;
 	private List<TilePosition> enemyBuiltPositions;
 
-	private boolean notCapped;
+	private int[] slowFrames = new int[3];
 
 	public Position enemyBase;
 
@@ -54,8 +54,9 @@ public class UPStarcraft extends DefaultBWListener{
 	private final double RUSH_FAIL_HEURISTIC = 1;
 	private final int AMT_BASES = Integer.MAX_VALUE;
 	private final int SPEED = 20;
+	private final int EXPAND_SPEED = 20;
 	private final int DEFENDERS_PER_BASE = 12;
-	private final int EXPAND_WORKER_COUNT = 10;
+	private final int EXPAND_WORKER_COUNT = 6;
 
 	public static void main(String[] args) {
 		new UPStarcraft().run();
@@ -69,7 +70,6 @@ public class UPStarcraft extends DefaultBWListener{
 	@Override
 	public void onStart() {
 		frames = 0;
-		notCapped = true;
 		expectedBases = 0;
 		nextBaseID = 0;
 		init = true;
@@ -125,6 +125,10 @@ public class UPStarcraft extends DefaultBWListener{
 
 		baseList.add(initBase);
 		//System.out.println("Added Base to LIst");
+		
+		slowFrames[0] = 0;
+		slowFrames[1] = 0;
+		slowFrames[2] = 0;
 	}	
 
 
@@ -133,23 +137,17 @@ public class UPStarcraft extends DefaultBWListener{
 		if(game.isPaused())
 			return;
 
+		long startTime = System.nanoTime();
+
 		frames++;
 
-		if(frames > 100)//90000)
-		{
-			rushing = false;
-			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
-		}
-
-		if(self.supplyUsed() == 400 && notCapped)
-		{
-			System.out.println("Reached cap at frames " + frames);
-			notCapped = false;
-		}
+//		if(frames > 9000000)//90000)
+//		{
+//			rushing = false;
+//			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
+//		}
 
 		try{
-			army.manage();
-
 			if(!rushing && expectedBases + baseList.size() < AMT_BASES)
 				assignBases();
 
@@ -157,7 +155,7 @@ public class UPStarcraft extends DefaultBWListener{
 
 			//Remove enemy bases from our list of places
 			removeEnemyBases();
-			
+
 			//Each manage function returns the minerals it did not use for the next to use
 			for(Base base : reversed(baseList))
 			{
@@ -167,15 +165,20 @@ public class UPStarcraft extends DefaultBWListener{
 					basesToRemove.add(base);
 			}
 
-			for(Base base : basesToRemove)
-			{
-				if(baseList.size() > 1)
-				{
-					basesMade.remove(base.getHatchery());
-					baseList.get(basesMade.indexOf(findClosest(basesMade, base.getHatchery()))).inheritWorkers(base.getWorkers());
-					baseList.remove(base);
-				}
-			}
+
+
+			// Completely bollocksed up
+			//			for(Base base : basesToRemove)
+			//			{
+			//				if(baseList.size() > 1)
+			//				{
+			//					basesMade.remove(base.getHatchery());
+			//					baseList.get(basesMade.indexOf(findClosest(basesMade, base.getHatchery()))).inheritWorkers(base.getWorkers());
+			//					baseList.remove(base);
+			//				}
+			//			}
+
+			army.manage();
 
 
 			if(init) init = false; //should mean no duplicates in first frame are done
@@ -187,6 +190,25 @@ public class UPStarcraft extends DefaultBWListener{
 		{
 			e.printStackTrace();
 		}
+
+		//after all is done, see if latency  is an issue
+		long duration = (System.nanoTime() - startTime) / 1000000;
+		if(duration > 10000) //10s
+		{
+			slowFrames[0]++;
+			System.out.println("10s frame; current amount is " + slowFrames[0]); 
+		}
+		else if(duration > 1000) //1s
+		{
+			slowFrames[1]++;
+			System.out.println("1s frame; current amount is " + slowFrames[1]); 
+		}
+		else if(duration > 55) //55ms
+		{
+			slowFrames[2]++;
+			System.out.println("55ms frame; current amount is " + slowFrames[2]); 
+		}
+
 	}
 
 	public int getSupplyUsed(){
@@ -258,7 +280,7 @@ public class UPStarcraft extends DefaultBWListener{
 		else if(unit.getType() == UnitType.Zerg_Egg && mine)
 		{
 			if(unit.getBuildType() == UnitType.Zerg_Overlord);
-						
+
 			baseList.get(basesMade.indexOf(findClosest(basesMade, unit))).addEgg(unit);
 		}
 	}
@@ -322,13 +344,18 @@ public class UPStarcraft extends DefaultBWListener{
 
 	private int games = 0;
 	private int wins = 0;
+	private int rushFails = 0;
 	@Override
 	public void onEnd(boolean isWinner)
 	{
 		games++;
+		
 		if(isWinner) wins++;
 		else System.out.println("We lost this one.");
+
 		System.out.println("Game ended: " + wins + "/" + games);
+
+		if(rushFails > 0) System.out.println("Rush Failures: " + rushFails);
 	}
 
 	public void newTroop(Troop troop)
@@ -390,9 +417,11 @@ public class UPStarcraft extends DefaultBWListener{
 			if(killRatio < RUSH_FAIL_HEURISTIC)
 			{
 				System.out.println("THE RUSH HAS FAILED");
+				rushFails++;
 				System.out.println("The KD ratio is " + killRatio);
 				baseList.get(0).setWorkerAmount(EXPAND_WORKER_COUNT);
 				baseList.get(0).decrementWorkers();
+				game.setLocalSpeed(EXPAND_SPEED);
 				return false;
 			}
 
@@ -417,8 +446,8 @@ public class UPStarcraft extends DefaultBWListener{
 
 		Base base = baseList.get(baseList.size()-1);
 
-//		System.out.println("Army size: " + army.size());
-//		System.out.println("Base size: " + baseList.size());
+		//		System.out.println("Army size: " + army.size());
+		//		System.out.println("Base size: " + baseList.size());
 		if(base.getTarget() == null && expand && army.size() >= baseList.size()*DEFENDERS_PER_BASE)
 		{
 			TilePosition basePos = findClosestPosition(basePositions, base.getHatchery());
@@ -458,6 +487,11 @@ public class UPStarcraft extends DefaultBWListener{
 				basePositions.remove(enemy.getTilePosition());
 				enemyBuiltPositions.add(enemy.getTilePosition());
 			}
+	}
+	
+	public int getNumBases()
+	{
+		return baseList.size();
 	}
 }
 
