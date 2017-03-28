@@ -1,6 +1,5 @@
 package Jarretts_Prototype;
 
-import static Jarretts_Prototype.ReverseOrder.reversed;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,6 @@ public class ReplayWatcher extends DefaultBWListener{
 	public void onStart() {
 		frames = 0;
 		game = mirror.getGame();
-		self = game.self();
 		BWTA.readMap();
 		BWTA.analyze();	
 
@@ -51,7 +49,7 @@ public class ReplayWatcher extends DefaultBWListener{
 			System.out.println("Player " + p.getID() + " is called " + p.getName());
 			if(p.getName().equals("AI"))
 				self = p;
-			else if(p.getName().equals("Tiamat Brood"))
+			else if(!p.getName().equals("Neutral"))
 				enemyBase = p.getStartLocation();
 		}
 
@@ -101,7 +99,7 @@ public class ReplayWatcher extends DefaultBWListener{
 
 			if(speed0)
 			{
-				game.setLocalSpeed(10);
+				game.setLocalSpeed(7);
 				speed0 = false;
 				speed22 = true;
 			}

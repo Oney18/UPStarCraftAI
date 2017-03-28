@@ -21,6 +21,7 @@ public class UPStarcraft extends DefaultBWListener{
 	private Player self;
 
 	public boolean spawnPoolExists;
+	public int poolAssigned;
 	public boolean gasMorphing;
 	public boolean cheesed;
 
@@ -44,6 +45,7 @@ public class UPStarcraft extends DefaultBWListener{
 	private List<TilePosition> enemyBuiltPositions;
 
 	private int[] slowFrames = new int[3];
+	private Exception e;
 
 	public Position enemyBase;
 
@@ -53,8 +55,8 @@ public class UPStarcraft extends DefaultBWListener{
 	//Dummied right now
 	private final double RUSH_FAIL_HEURISTIC = 1;
 	private final int AMT_BASES = Integer.MAX_VALUE;
-	private final int SPEED = 20;
-	private final int EXPAND_SPEED = 20;
+	private final int SPEED = 0;
+	private final int EXPAND_SPEED = 0;
 	private final int DEFENDERS_PER_BASE = 12;
 	private final int EXPAND_WORKER_COUNT = 6;
 
@@ -103,6 +105,7 @@ public class UPStarcraft extends DefaultBWListener{
 		List<Unit> myUnits = self.getUnits();
 		Base initBase = null;
 		spawnPoolExists = false;
+		poolAssigned = -1;
 		gasMorphing = false;
 		cheesed = false;
 
@@ -141,11 +144,12 @@ public class UPStarcraft extends DefaultBWListener{
 
 		frames++;
 
-//		if(frames > 9000000)//90000)
-//		{
-//			rushing = false;
-//			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
-//		}
+		if(false && frames > 2000 && rushing)//90000)
+		{
+			rushing = false;
+			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
+			game.setLocalSpeed(EXPAND_SPEED);
+		}
 
 		try{
 			if(!rushing && expectedBases + baseList.size() < AMT_BASES)
@@ -189,6 +193,7 @@ public class UPStarcraft extends DefaultBWListener{
 		catch(Exception e)
 		{
 			e.printStackTrace();
+			System.exit(1);
 		}
 
 		//after all is done, see if latency  is an issue
@@ -208,7 +213,6 @@ public class UPStarcraft extends DefaultBWListener{
 			slowFrames[2]++;
 			System.out.println("55ms frame; current amount is " + slowFrames[2]); 
 		}
-
 	}
 
 	public int getSupplyUsed(){
@@ -337,7 +341,10 @@ public class UPStarcraft extends DefaultBWListener{
 				zergDeath = true;
 		}
 		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && unit.getPlayer() == self)
+		{
 			spawnPoolExists = false;
+			poolAssigned = -1;
+		}
 	}
 
 

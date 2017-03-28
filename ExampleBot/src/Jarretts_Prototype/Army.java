@@ -54,7 +54,7 @@ public class Army {
 	private int scoutCounter;
 	private int scoutDist;
 	
-	private final int END_RUSH_AMOUNT_PER_BASE = 20;
+	private final int END_RUSH_AMOUNT_PER_BASE = 16;
 
 	public Army(Player self, Game game, UPStarcraft controller){
 		troops = new ArrayList<Troop>();
@@ -159,6 +159,7 @@ public class Army {
 			{
 				Object target = null;
 				
+				t.doStatistics();
 				Position zergSpot = t.getMeanPos();
 				
 				if(!enemyProblems.isEmpty()) //target closest threat
@@ -422,7 +423,7 @@ public class Army {
 					{
 						enemyCores.add(unit);
 						
-						if(enemyBase == null && startPoss.contains(unit.getPosition()))
+						if(enemyBase == null && closestStart(unit.getPosition()) < 5)
 						{
 							System.out.println("Set enemy base (seen)");
 							seenBase = true;
@@ -431,10 +432,13 @@ public class Army {
 							controller.enemyBase = unit.getPosition();
 						}
 						
-						if(enemyBaseUnit == null && startPoss.contains(unit.getPosition()))
+						//startPoss.contains(unit.getPosition())
+						
+						if(enemyBaseUnit == null && closestStart(unit.getPosition()) < 5)
 						{
 							System.out.println("Set enemy unit (seen)");
 							seenBase = true;
+							enemyBase = unit.getPosition();
 							enemyBaseUnit = unit;
 							controller.enemyBase = unit.getPosition();
 						}
@@ -544,9 +548,10 @@ public class Army {
 		int distance = Integer.MAX_VALUE;
 		for(Unit unit : list)
 		{
-			if(unit.getPosition().getApproxDistance(u.getPosition()) < distance)
+			int temp = (int) unit.getTilePosition().getDistance(u.getTilePosition());
+			if( temp < distance)
 			{
-				distance = unit.getPosition().getApproxDistance(u.getPosition());
+				distance = temp;
 				returnUnit = unit;
 			}
 		}
@@ -559,9 +564,17 @@ public class Army {
 		int distance = Integer.MAX_VALUE;
 		for(Unit unit : list)
 		{
-			if(unit.getPosition().getApproxDistance(p) < distance)
+			if(unit == null || p == null)
 			{
-				distance = unit.getPosition().getApproxDistance(p);
+				System.out.println("Is unit null? Answer is " + String.valueOf(unit == null));
+				System.out.println("Is p null? answer is " + String.valueOf(p == null));
+			}
+			
+			int temp = (int) unit.getTilePosition().getDistance(p.toTilePosition());
+			
+			if( temp < distance)
+			{
+				distance = temp;
 				returnUnit = unit;
 			}
 		}
@@ -609,6 +622,19 @@ public class Army {
 		for(Troop t : troops)
 			size += t.getSize();
 		return size;
+	}
+	
+	private int closestStart(Position p)
+	{
+		int dist = Integer.MAX_VALUE;
+		for(Position pos : startPoss)
+		{
+			int temp = (int) p.toTilePosition().getDistance(pos.toTilePosition());
+			if(temp < dist)
+				dist = temp;
+		}
+		
+		return dist;
 	}
 
 }

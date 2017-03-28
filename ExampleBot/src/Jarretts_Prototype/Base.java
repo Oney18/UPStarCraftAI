@@ -23,8 +23,8 @@ public class Base {
 	private Troop troop;
 	private boolean buildingOverlord;
 
-	private boolean gettingPoolWorker = false;
-	private boolean buildingPool = false;
+	private boolean gettingPoolWorker;
+	private boolean buildingPool;
 	private Unit poolMorpherDrone;
 	private TilePosition poolPos;
 	private int workersExpected;
@@ -59,6 +59,8 @@ public class Base {
 		this.game = game;
 		this.doExtractor = doExtractor;
 		this.baseID = baseID;
+		buildingPool = false;
+		gettingPoolWorker = false;
 		
 		if(doExtractor)
 			WORKER_AMOUNT = 4;
@@ -91,6 +93,15 @@ public class Base {
 	public int manage(int minerals)
 	{	
 
+		if(poolMorpherDrone != null && poolMorpherDrone.exists() && false)
+		{
+			int x = Math.max(poolMorpherDrone.getPosition().getX() - 325, 0);
+			int y = Math.max(poolMorpherDrone.getPosition().getY() - 200, 0);
+			game.setScreenPosition(new Position(x, y));
+			game.setLocalSpeed(20);
+		}
+			
+		
 		if(!controller.rushing)
 		{
 			workersExpected = 0;
@@ -127,8 +138,9 @@ public class Base {
 
 		workerManager.manage();
 
-		if(!controller.spawnPoolExists)
+		if(!controller.spawnPoolExists && (controller.poolAssigned == baseID || controller.poolAssigned == -1))
 			makeSpawnPool(minerals);
+		
 		if(doExtractor)
 			extractorTrick(minerals);
 		
@@ -210,10 +222,17 @@ public class Base {
 
 	private void makeSpawnPool(int minerals)
 	{
+		//Declare to controller that this base is making the pool
+		if(controller.poolAssigned == -1)
+		{
+			controller.poolAssigned = baseID;
+			System.out.println("Base " + baseID + " is building the pool");
+		}
+		
 		// build a spawning pool when we can
 		if ( !buildingPool && minerals >= 180 && workerManager.getNumWorkers()>0) 
 		{
-			if(minerals <200 && !gettingPoolWorker) //between 150 and 200 then
+			if(minerals <200 && (!gettingPoolWorker || (poolMorpherDrone != null && !poolMorpherDrone.exists()))) //between 150 and 200 then
 			{
 				poolMorpherDrone = workerManager.getWorker();
 
@@ -427,10 +446,10 @@ public class Base {
 
 	private TilePosition findAltTarget()
 	{
-		int minLeft = 0;
-		int minRight = 0;
-		int minUp = 0;
-		int minDown = 0;
+//		int minLeft = 0;
+//		int minRight = 0;
+//		int minUp = 0;
+//		int minDown = 0;
 
 		int x = baseTarget.getX();
 		int y = baseTarget.getY();
@@ -446,31 +465,49 @@ public class Base {
 				closestGeyser = geyser;
 			}					
 		}
+		
+		int avgX = 0;
+		int avgY = 0;
+		int amtMin = 0;
 
 		for(Unit mineral : game.getMinerals() ){
 
 			//determines position relative to base
 
-			if(mineral.getTilePosition().getDistance(baseTarget) > 10)
+			if(mineral.getTilePosition().getDistance(baseTarget) > 15)
 				//irrelevant mineral
 				continue;
 
-			if(baseTarget.getX() > mineral.getTilePosition().getX())
-				//minerals are to the left
-				minLeft++;
-			else
-				minRight++;
-
-			if(baseTarget.getY() > mineral.getTilePosition().getY())
-				//minerals are above
-				minUp++;
-			else
-				minDown++;
-
-
+			avgX += mineral.getTilePosition().getX();
+			avgY += mineral.getTilePosition().getY();
+			amtMin++;
+			
+//			if(baseTarget.getX() > mineral.getTilePosition().getX())
+//				//minerals are to the left
+//				minLeft++;
+//			else
+//				minRight++;
+//
+//			if(baseTarget.getY() > mineral.getTilePosition().getY())
+//				//minerals are above
+//				minUp++;
+//			else
+//				minDown++;
 		}
+		
+		//stupid case with the stupid map with the stupid spots
+		if(amtMin == 0)
+			return baseTarget;
+		
+		avgX /= amtMin;
+		avgY /= amtMin;
+		
+		System.out.println("Base target is  : " + baseTarget);
+		System.out.println("Average minerals: " + new TilePosition(avgX, avgY));
+		System.out.println("Closest getseyr : " + closestGeyser.getTilePosition());
 
-		if(minLeft > minRight) //alt need to be to the right
+		//Base is to left of average minerals
+		if(baseTarget.getX() > avgX) //alt need to be to the right
 		{
 			boolean moveRight = true;
 
@@ -483,7 +520,7 @@ public class Base {
 			if(moveRight)
 				x += 1;
 		}
-		else
+		else if(baseTarget.getX() < avgX) //Base is to right of average minerals
 		{
 			boolean moveLeft = true;
 
@@ -497,32 +534,48 @@ public class Base {
 				x -= 1;
 		}
 
-		if(minUp > minDown) //alt need to be to down
+		if(baseTarget.getY() > avgY) //alt need to be to down
 		{
 			boolean moveDown = true;
 
-			//check for dominantly horizontal geyser
+			//check for dominantly vertical geyser
 			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
-					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+					< Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
 				if(baseTarget.getY() < closestGeyser.getTilePosition().getY()) 
 					moveDown = false; //geyser is to the down, cannot move down
 
 			if(moveDown)
 				y += 1;			
 		}
-		else
+		else if(baseTarget.getY() < avgY)
 		{
 			boolean moveUp = true;
 
-			//check for dominantly horizontal geyser
+			//check for dominantly vartical geyser
 			if(Math.abs(baseTarget.getX() - closestGeyser.getTilePosition().getX()) 
-					> Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
+					< Math.abs(baseTarget.getY() - closestGeyser.getTilePosition().getY()))
 				if(baseTarget.getY() > closestGeyser.getTilePosition().getY()) 
 					moveUp = false; //geyser is to the up, cannot move up
 
 			if(moveUp)
 				y -= 1;		
 		}
+		
+		/*
+		if(0>(baseTarget.getX() - avgX)*(baseTarget.getX() - closestGeyser.getTilePosition().getX())){
+			//presumably this means that the geyser is on the left/right and crystals on opposite
+			if(Math.abs(baseTarget.getY()-avgY)<Math.abs(baseTarget.getY()-closestGeyser.getTilePosition().getY())){
+				//step away from avgY
+			}
+			else if(){
+				//step away from closestGeyser
+			}
+		}
+		else if(0>(baseTarget.getY() - avgY)*(baseTarget.getY() - closestGeyser.getTilePosition().getY())){
+			//presumably this means that the geyser is on the left/right and crystals on opposite
+		}
+		*/
+		
 		return new TilePosition(x, y);
 	}
 

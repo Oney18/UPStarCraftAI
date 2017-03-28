@@ -131,7 +131,7 @@ public class Troop {
 		
 	}
 	
-	private void doStatistics()
+	public void doStatistics()
 	{
 		int avX = 0;
 		int avY = 0;
@@ -142,8 +142,11 @@ public class Troop {
 			avY += zergling.getTilePosition().getY();
 		}
 		
-		avX /= units.size();
-		avY /= units.size();
+		if(units.size() > 0)
+		{
+			avX /= units.size();
+			avY /= units.size();
+		}
 		
 		
 		meanPos = new TilePosition(avX, avY).toPosition();
