@@ -41,14 +41,16 @@ public class Base {
 	private boolean buildingBase;
 	private boolean builtInitDrone;
 	private int baseID;
-	
+	private int baseDist;
+	private int baseCounter;
+
 	private List<Unit> eggs;	//eggs being morphed by base
 	private List<Unit> orderedLarvae; //larvae that have been ordered
 
 	private Random RNGesus;
 
 	private static int WORKER_AMOUNT;
-	
+
 	private final boolean debug = false;
 
 	//If doExtractor is true, it is the first base
@@ -61,10 +63,12 @@ public class Base {
 		this.baseID = baseID;
 		buildingPool = false;
 		gettingPoolWorker = false;
-		
+		baseCounter = 0;
+		baseDist = 1;
+
 		if(doExtractor)
 			WORKER_AMOUNT = 4;
-		
+
 		eggs = new ArrayList<Unit>();
 		orderedLarvae = new ArrayList<Unit>();
 		builtInitDrone = false;
@@ -93,15 +97,15 @@ public class Base {
 	public int manage(int minerals)
 	{	
 
-		if(poolMorpherDrone != null && poolMorpherDrone.exists() && false)
+		if(baseWorker != null && baseWorker.exists() && true)
 		{
-			int x = Math.max(poolMorpherDrone.getPosition().getX() - 325, 0);
-			int y = Math.max(poolMorpherDrone.getPosition().getY() - 200, 0);
+			int x = Math.max(baseWorker.getPosition().getX() - 325, 0);
+			int y = Math.max(baseWorker.getPosition().getY() - 200, 0);
 			game.setScreenPosition(new Position(x, y));
-			game.setLocalSpeed(20);
+			//game.setLocalSpeed(20);
 		}
-			
-		
+
+
 		if(!controller.rushing)
 		{
 			workersExpected = 0;
@@ -120,14 +124,14 @@ public class Base {
 
 			eggs.removeAll(badEggs);
 		}
-			
-		
+
+
 		List<Unit> larvae = hatchery.getLarva();
-		
-//		//check for ordered larvae
-//		for(Unit used : orderedLarvae)
-//			if(larvae.contains(used))
-//				larvae.remove(used);
+
+		//		//check for ordered larvae
+		//		for(Unit used : orderedLarvae)
+		//			if(larvae.contains(used))
+		//				larvae.remove(used);
 
 		game.drawTextMap(hatchery.getPosition(), "allocatedMin: " + minerals + "\nnumWorkers : " + workerManager.getNumWorkers() + "\nzergs: " + troop.getSize() + 
 				"\nnumLarva: " + larvae.size() + "\nexpectedWorkers: " + workersExpected + "\nworkerCountStat: " + WORKER_AMOUNT + "\nEggs: " + eggs.size());
@@ -140,10 +144,10 @@ public class Base {
 
 		if(!controller.spawnPoolExists && (controller.poolAssigned == baseID || controller.poolAssigned == -1))
 			makeSpawnPool(minerals);
-		
+
 		if(doExtractor)
 			extractorTrick(minerals);
-		
+
 		if(!controller.rushing)
 			minerals = expand(minerals);
 
@@ -171,13 +175,13 @@ public class Base {
 				Unit larva = larvae.get(0); //get a larvae
 				if(larva.morph(UnitType.Zerg_Overlord))
 					orderedLarvae.add(larva); //morph and add to list if successful
-				
+
 				if(debug)
 				{
 					System.out.println("Tried to morph overlord at base " + baseID);
 					System.out.println(" on frame: " + game.getFrameCount());
 				}
-				
+
 				larvae.remove(0); //remove from array
 				minerals -= 100;
 				buildingOverlord = true;
@@ -190,20 +194,20 @@ public class Base {
 		{
 			if(debug)
 				System.out.println("Larvae Size: " + larvae.size());
-			
+
 			Unit larva = larvae.get(0);
-			
+
 			if(debug)
 			{
 				System.out.print("Trying to morph drone ID: " + larva.getID());
 				System.out.println(" on frame: " + game.getFrameCount());
 			}
-			
+
 			larva.morph(UnitType.Zerg_Drone);
 			workersExpected++;
 			larvae.remove(larva);
 			minerals =- 50;
-			
+
 			if(debug)
 				System.out.println("Tried to morph worker, base " + baseID);
 		}
@@ -228,7 +232,7 @@ public class Base {
 			controller.poolAssigned = baseID;
 			System.out.println("Base " + baseID + " is building the pool");
 		}
-		
+
 		// build a spawning pool when we can
 		if ( !buildingPool && minerals >= 180 && workerManager.getNumWorkers()>0) 
 		{
@@ -429,13 +433,15 @@ public class Base {
 			baseFrames++;
 			if(baseFrames == 50)
 			{
-				if(altTarget == null)
-					altTarget = findAltTarget();
+				altTarget = findAltTarget();
 
 				baseFrames = 0;
 
-				baseWorker.move(altTarget.toPosition());
-				baseWorker.build(UnitType.Zerg_Hatchery, baseWorker.getTilePosition());
+				if(altTarget != null)
+				{
+					baseWorker.move(altTarget.toPosition());
+					baseWorker.build(UnitType.Zerg_Hatchery, baseWorker.getTilePosition());
+				}
 				minerals -= 300;
 			}
 		}
@@ -443,6 +449,48 @@ public class Base {
 			buildingBase = true;
 		return minerals;
 	}
+
+	private TilePosition findAltTarget()
+	{
+		baseCounter++;
+		if(baseCounter == 8)
+		{
+			baseCounter = 0;
+			baseDist++;
+		}
+
+
+		switch(baseCounter)
+		{
+		case 0:
+			return new TilePosition(baseTarget.getX(), baseTarget.getY() - baseDist);
+
+		case 1:
+			return new TilePosition(baseTarget.getX() + baseDist, baseTarget.getY() - baseDist);
+
+		case 2:
+			return new TilePosition(baseTarget.getX() + baseDist, baseTarget.getY());
+
+		case 3:
+			return new TilePosition(baseTarget.getX() + baseDist, baseTarget.getY() + baseDist);
+
+		case 4:
+			return new TilePosition(baseTarget.getX(), baseTarget.getY() + baseDist);
+
+		case 5:
+			return new TilePosition(baseTarget.getX() - baseDist, baseTarget.getY() + baseDist);
+
+		case 6:
+			return new TilePosition(baseTarget.getX() - baseDist, baseTarget.getY());
+
+		case 7:
+			return new TilePosition(baseTarget.getX() - baseDist, baseTarget.getY() - baseDist);
+
+		}
+		return null;
+	}
+
+	/*
 
 	private TilePosition findAltTarget()
 	{
@@ -465,7 +513,7 @@ public class Base {
 				closestGeyser = geyser;
 			}					
 		}
-		
+
 		int avgX = 0;
 		int avgY = 0;
 		int amtMin = 0;
@@ -481,7 +529,7 @@ public class Base {
 			avgX += mineral.getTilePosition().getX();
 			avgY += mineral.getTilePosition().getY();
 			amtMin++;
-			
+
 //			if(baseTarget.getX() > mineral.getTilePosition().getX())
 //				//minerals are to the left
 //				minLeft++;
@@ -494,14 +542,14 @@ public class Base {
 //			else
 //				minDown++;
 		}
-		
+
 		//stupid case with the stupid map with the stupid spots
 		if(amtMin == 0)
 			return baseTarget;
-		
+
 		avgX /= amtMin;
 		avgY /= amtMin;
-		
+
 		System.out.println("Base target is  : " + baseTarget);
 		System.out.println("Average minerals: " + new TilePosition(avgX, avgY));
 		System.out.println("Closest getseyr : " + closestGeyser.getTilePosition());
@@ -560,7 +608,7 @@ public class Base {
 			if(moveUp)
 				y -= 1;		
 		}
-		
+
 		/*
 		if(0>(baseTarget.getX() - avgX)*(baseTarget.getX() - closestGeyser.getTilePosition().getX())){
 			//presumably this means that the geyser is on the left/right and crystals on opposite
@@ -574,10 +622,10 @@ public class Base {
 		else if(0>(baseTarget.getY() - avgY)*(baseTarget.getY() - closestGeyser.getTilePosition().getY())){
 			//presumably this means that the geyser is on the left/right and crystals on opposite
 		}
-		*/
-		
-		return new TilePosition(x, y);
-	}
+	 */
+
+	//return new TilePosition(x, y);
+	//}
 
 	public static void setWorkerAmount(int amt)
 	{
@@ -622,23 +670,23 @@ public class Base {
 			return true;
 		return false;
 	}
-	
+
 	public List<Unit> getWorkers()
 	{
 		return workerManager.getWorkerList();
 	}
-	
+
 	public void inheritWorkers(List<Unit> workers)
 	{
 		for(Unit worker : workers)
 			workerManager.addWorker(worker);
 	}
-	
+
 	public boolean exists()
 	{
 		return hatchery.exists();
 	}
-	
+
 	public void addEgg(Unit egg)
 	{
 		eggs.add(egg);

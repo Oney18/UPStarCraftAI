@@ -144,7 +144,7 @@ public class UPStarcraft extends DefaultBWListener{
 
 		frames++;
 
-		if(false && frames > 2000 && rushing)//90000)
+		if(true && frames > 2000 && rushing)//90000)
 		{
 			rushing = false;
 			Base.setWorkerAmount(EXPAND_WORKER_COUNT);

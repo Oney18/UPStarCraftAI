@@ -87,6 +87,12 @@ public class Army {
 		lasti = 1;
 		lastj = 1;
 		forwardMarch = true;
+		
+		System.out.println("Start pos size " + startPoss.size());
+		for(Position p : startPoss)
+			System.out.println(p);
+		System.out.println("Our start is " + BWTA.getStartLocation(self).getPosition());
+		System.out.println("Home base is " + homeBase);
 
 	}
 
@@ -94,6 +100,10 @@ public class Army {
 	{
 		scoutOverlord();
 		getSeenEnemies();
+		
+		for(Position p : startPoss)
+			game.drawCircleMap(p, 10, Color.Cyan, true);
+		game.drawCircleMap(homeBase, 10, Color.Cyan, true);
 		
 		if(controller.rushing){
 			attack();
@@ -211,7 +221,9 @@ public class Army {
 						{
 							System.out.println("Enemy base dead?");
 							killedBase = true;
-							startChecked[startPoss.indexOf(enemyBase)] = true;
+							
+							if(startPoss.indexOf(enemyBase) != -1)
+								startChecked[startPoss.indexOf(enemyBase)] = true;
 							
 						}
 						else
