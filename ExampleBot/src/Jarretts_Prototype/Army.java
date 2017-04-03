@@ -419,7 +419,7 @@ public class Army {
 				{
 					enemyWorkers.add(unit);
 				}
-				else if(unit.getType().canAttack() 	|| unit.getType() == UnitType.Terran_Bunker
+				else if((!unit.isFlying() && unit.getType().canAttack()) 	|| unit.getType() == UnitType.Terran_Bunker
 													|| unit.getType() == UnitType.Zerg_Sunken_Colony
 													|| unit.getType() == UnitType.Protoss_Photon_Cannon)
 				{

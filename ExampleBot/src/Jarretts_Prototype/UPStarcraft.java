@@ -144,7 +144,7 @@ public class UPStarcraft extends DefaultBWListener{
 
 		frames++;
 
-		if(true && frames > 2000 && rushing)//90000)
+		if(false && frames > 2000 && rushing)//90000)
 		{
 			rushing = false;
 			Base.setWorkerAmount(EXPAND_WORKER_COUNT);
@@ -296,6 +296,7 @@ public class UPStarcraft extends DefaultBWListener{
 		else if(unit.getType() == UnitType.Zerg_Spawning_Pool && unit.getPlayer() == self)
 		{
 			spawnPoolExists = true;
+			baseList.get(poolAssigned).setPoolWorker(false);
 		}
 		else if(unit.getType() == UnitType.Zerg_Extractor && unit.getPlayer() == self)
 		{

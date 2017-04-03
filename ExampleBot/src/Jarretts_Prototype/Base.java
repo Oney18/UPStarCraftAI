@@ -43,6 +43,7 @@ public class Base {
 	private int baseID;
 	private int baseDist;
 	private int baseCounter;
+	private int stuckFrames;
 
 	private List<Unit> eggs;	//eggs being morphed by base
 	private List<Unit> orderedLarvae; //larvae that have been ordered
@@ -78,6 +79,7 @@ public class Base {
 		baseTarget = null;
 		baseFrames = 0;
 		frames = 0;
+		stuckFrames = 0;
 		buildingOverlord = false;
 		workerManager = new WorkerManager(self, game, doExtractor);
 		troop = new Troop(game, hatchery.getPosition());
@@ -97,7 +99,7 @@ public class Base {
 	public int manage(int minerals)
 	{	
 
-		if(baseWorker != null && baseWorker.exists() && true)
+		if(baseWorker != null && baseWorker.exists() && false)
 		{
 			int x = Math.max(baseWorker.getPosition().getX() - 325, 0);
 			int y = Math.max(baseWorker.getPosition().getY() - 200, 0);
@@ -142,7 +144,8 @@ public class Base {
 
 		workerManager.manage();
 
-		if(!controller.spawnPoolExists && (controller.poolAssigned == baseID || controller.poolAssigned == -1))
+		if(!controller.spawnPoolExists && (controller.poolAssigned == baseID || controller.poolAssigned == -1) 
+					&& workerManager.getNumWorkers() > 0)
 			makeSpawnPool(minerals);
 
 		if(doExtractor)
@@ -228,15 +231,14 @@ public class Base {
 	{
 		//Declare to controller that this base is making the pool
 		if(controller.poolAssigned == -1)
-		{
 			controller.poolAssigned = baseID;
-			System.out.println("Base " + baseID + " is building the pool");
-		}
+
 
 		// build a spawning pool when we can
 		if ( !buildingPool && minerals >= 180 && workerManager.getNumWorkers()>0) 
 		{
-			if(minerals <200 && (!gettingPoolWorker || (poolMorpherDrone != null && !poolMorpherDrone.exists()))) //between 150 and 200 then
+			if(((minerals <200 && controller.rushing) || !controller.rushing) && 
+					(!gettingPoolWorker || (poolMorpherDrone != null && !poolMorpherDrone.exists()))) //between 150 and 200 then
 			{
 				poolMorpherDrone = workerManager.getWorker();
 
@@ -410,6 +412,13 @@ public class Base {
 	{
 		if(baseTarget == null)
 			return minerals;
+		
+		//look for the dumb blocker for the two base maps
+		Unit stupidMineral = null;
+		for(Unit min : game.getNeutralUnits())
+			if(min.getType() == UnitType.Resource_Mineral_Field)
+				if(min.getResources() == 0)
+					stupidMineral = min;
 
 		game.drawCircleMap(baseTarget.toPosition(), 10, Color.Green, true);
 
@@ -421,14 +430,20 @@ public class Base {
 		{
 			baseWorker = workerManager.getWorker();
 		}
+		else
+			stuckFrames++;
+		
+		//destroy the blocking mineral if it is present
+		if(baseWorker != null && baseWorker.exists() && stupidMineral != null && !baseWorker.isGatheringMinerals() && stuckFrames > 500)
+			baseWorker.gather(stupidMineral);
 		//run to the base
-		if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 3)
+		else if(baseWorker != null && baseWorker.exists() && baseWorker.getTilePosition().getDistance(baseTarget) > 3 && stupidMineral == null)
 		{
 			baseWorker.move(baseTarget.toPosition());
 		}
 
 		//build the base
-		else if(baseWorker != null && baseWorker.exists() && minerals >= 300 && baseWorker.canBuild(UnitType.Zerg_Hatchery))
+		else if(baseWorker != null && baseWorker.exists() && minerals >= 300 && baseWorker.canBuild(UnitType.Zerg_Hatchery) && stupidMineral == null)
 		{
 			baseFrames++;
 			if(baseFrames == 50)
@@ -445,7 +460,7 @@ public class Base {
 				minerals -= 300;
 			}
 		}
-		else if(baseWorker != null && baseWorker.exists() && baseWorker.isMorphing())
+		else if(baseWorker != null && baseWorker.exists() && baseWorker.isMorphing() && stupidMineral == null)
 			buildingBase = true;
 		return minerals;
 	}
@@ -661,6 +676,7 @@ public class Base {
 		baseWorker = null;
 		baseTarget = null;
 		altTarget = null;
+		stuckFrames = 0;
 		buildingBase = false;
 	}
 
@@ -690,5 +706,10 @@ public class Base {
 	public void addEgg(Unit egg)
 	{
 		eggs.add(egg);
+	}
+	
+	public void setPoolWorker(boolean b)
+	{
+		this.gettingPoolWorker = false;
 	}
 }
